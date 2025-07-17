@@ -14,9 +14,6 @@
   <a href="LICENSE">
     <img src="https://img.shields.io/badge/license-AGPL%20V3-blue" alt="AGPL V3">
   </a>
-  <a href="https://github.com/northernreachtech-cpu/eia/releases">
-    <img src="https://img.shields.io/badge/version-v1.0.0--alpha-orange" alt="Version">
-  </a>
   <img src="https://img.shields.io/badge/status-alpha-red" alt="Alpha">
 </p>
 
