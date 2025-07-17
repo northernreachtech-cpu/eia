@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Calendar,
   Users,
@@ -8,8 +8,11 @@ import {
   Eye,
   Settings,
   Plus,
+  Loader2,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useCurrentAccount } from "@mysten/dapp-kit";
+import { useEIAProtocolSDK } from "../lib/sdk";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import StatCard from "../components/StatCard";
@@ -31,42 +34,75 @@ interface Event {
 const OrganizerDashboard = () => {
   useScrollToTop();
   const navigate = useNavigate();
+  const currentAccount = useCurrentAccount();
+  const sdk = useEIAProtocolSDK();
 
-  const [events] = useState<Event[]>([
-    {
-      id: "1",
-      title: "Web3 Developer Conference 2024",
-      date: "2024-02-15",
-      status: "active",
-      checkedIn: 145,
-      totalCapacity: 200,
-      escrowStatus: "pending",
-      rating: 4.8,
-      revenue: 2500,
-    },
-    {
-      id: "2",
-      title: "Blockchain Workshop Series",
-      date: "2024-01-20",
-      status: "completed",
-      checkedIn: 89,
-      totalCapacity: 100,
-      escrowStatus: "released",
-      rating: 4.6,
-      revenue: 1200,
-    },
-    {
-      id: "3",
-      title: "DeFi Summit 2024",
-      date: "2024-03-10",
-      status: "upcoming",
-      checkedIn: 0,
-      totalCapacity: 300,
-      escrowStatus: "locked",
-      rating: 0,
-      revenue: 0,
-    },
-  ]);
+  const [loading, setLoading] = useState(true);
+  const [organizerProfile, setOrganizerProfile] = useState<any>(null);
+  const [events, setEvents] = useState<Event[]>([]);
+
+  useEffect(() => {
+    const loadOrganizerData = async () => {
+      if (!currentAccount) return;
+
+      try {
+        setLoading(true);
+        console.log("Loading organizer data for:", currentAccount.address);
+
+        // Check if user has profile
+        const hasProfile = await sdk.eventManagement.hasOrganizerProfile(
+          currentAccount.address
+        );
+        if (!hasProfile) {
+          navigate("/create-organizer-profile");
+          return;
+        }
+
+        // Get organizer's events
+        const organizerEvents = await sdk.eventManagement.getEventsByOrganizer(
+          currentAccount.address
+        );
+        console.log("Organizer events:", organizerEvents);
+
+        // Transform events to match interface
+        const transformedEvents = organizerEvents.map((event) => ({
+          id: event.id,
+          title: event.name,
+          date: new Date(event.start_time * 1000).toISOString().split("T")[0],
+          status:
+            event.state === 0
+              ? "upcoming"
+              : event.state === 1
+              ? "active"
+              : "completed",
+          checkedIn: 0, // TODO: Get from registration data
+          totalCapacity: 100, // TODO: Get from event data
+          escrowStatus: "pending",
+          rating: 0, // TODO: Get from event data
+          revenue: 0, // TODO: Get from event data
+        }));
+
+        setEvents(transformedEvents);
+      } catch (error) {
+        console.error("Error loading organizer data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadOrganizerData();
+  }, [currentAccount, sdk, navigate]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <span className="text-white">Loading dashboard...</span>
+        </div>
+      </div>
+    );
+  }
 
   const totalEvents = events.length;
   const totalAttendees = events.reduce(
@@ -164,8 +200,14 @@ const OrganizerDashboard = () => {
 
         <div className="mb-6 sm:mb-8">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 sm:mb-6">
-            <h2 className="text-xl sm:text-2xl font-bold text-white">Your Events</h2>
-            <Button variant="outline" size="sm" className="w-full sm:w-auto py-2.5 sm:py-2">
+            <h2 className="text-xl sm:text-2xl font-bold text-white">
+              Your Events
+            </h2>
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full sm:w-auto py-2.5 sm:py-2"
+            >
               <Settings className="mr-2 h-4 w-4" />
               Manage
             </Button>
@@ -219,12 +261,18 @@ const OrganizerDashboard = () => {
                         <div
                           className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all duration-500"
                           style={{
-                            width: `${Math.min((event.checkedIn / event.totalCapacity) * 100, 100)}%`,
+                            width: `${Math.min(
+                              (event.checkedIn / event.totalCapacity) * 100,
+                              100
+                            )}%`,
                           }}
                         ></div>
                       </div>
                       <p className="text-xs text-white/60 mt-1">
-                        {Math.round((event.checkedIn / event.totalCapacity) * 100)}% capacity
+                        {Math.round(
+                          (event.checkedIn / event.totalCapacity) * 100
+                        )}
+                        % capacity
                       </p>
                     </div>
                   </div>
@@ -246,9 +294,7 @@ const OrganizerDashboard = () => {
 
                     {/* Revenue */}
                     <div className="text-center p-2 sm:p-3 rounded bg-white/5">
-                      <div className="text-xs text-white/60 mb-1">
-                        Revenue
-                      </div>
+                      <div className="text-xs text-white/60 mb-1">Revenue</div>
                       <div className="text-sm font-medium text-white">
                         ${event.revenue.toLocaleString()}
                       </div>
@@ -257,9 +303,7 @@ const OrganizerDashboard = () => {
                     {/* Rating */}
                     {event.rating > 0 && (
                       <div className="col-span-2 text-center p-2 sm:p-3 rounded bg-white/5">
-                        <div className="text-xs text-white/60 mb-2">
-                          Rating
-                        </div>
+                        <div className="text-xs text-white/60 mb-2">Rating</div>
                         <RatingStars
                           rating={event.rating}
                           size="sm"

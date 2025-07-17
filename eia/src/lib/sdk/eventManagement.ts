@@ -79,6 +79,10 @@ export class EventManagementSDK {
     this.packageId = packageId;
   }
 
+  getPackageId(): string {
+    return this.packageId;
+  }
+
   /**
    * Creates a new organizer profile
    */
@@ -99,7 +103,7 @@ export class EventManagementSDK {
     });
 
     tx.transferObjects([organizerCap], tx.pure.address(recipient));
-    tx.setGasBudget(10000000); 
+    tx.setGasBudget(10000000);
     return tx;
   }
 
@@ -250,6 +254,7 @@ export class EventManagementSDK {
       }
 
       const fields = response.data.content.fields as any;
+      // console.log("fields:::", fields);
       return {
         id: fields.id.id,
         address: fields.address,
@@ -313,6 +318,7 @@ export class EventManagementSDK {
 
   async hasOrganizerProfile(address: string): Promise<boolean> {
     try {
+      console.log("Checking profile for address:", address);
       const { data: objects } = await suiClient.getOwnedObjects({
         owner: address,
         filter: {
@@ -321,19 +327,27 @@ export class EventManagementSDK {
         options: { showContent: true },
       });
 
+      console.log("Found OrganizerCap objects:", objects);
+
       if (objects.length === 0) return false;
 
       for (const obj of objects) {
         const fields = extractMoveObjectFields(obj);
+        console.log("OrganizerCap fields:", fields);
+
         if (fields) {
           const profileId = fields.profile_id;
-          
+          console.log("Profile ID:", profileId);
+
           const profileResponse = await suiClient.getObject({
             id: profileId,
             options: { showContent: true },
           });
 
+          console.log("Profile response:", profileResponse);
           const profileFields = extractMoveObjectFields(profileResponse);
+          console.log("Profile fields:", profileFields);
+
           if (profileFields && profileFields.address === address) {
             return true;
           }
@@ -347,4 +361,3 @@ export class EventManagementSDK {
     }
   }
 }
-

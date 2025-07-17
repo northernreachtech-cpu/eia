@@ -34,7 +34,7 @@
 EIA Protocol enables seamless event management through blockchain-native features:
 
 - **Organizers** create events with reputation tracking and performance metrics
-- **Attendees** get ephemeral access passes and earn NFT proofs of attendance  
+- **Attendees** get ephemeral access passes and earn NFT proofs of attendance
 - **Sponsors** fund events with automated performance-based settlements
 - **Communities** form around events with token-gated access
 
@@ -45,26 +45,31 @@ EIA Protocol enables seamless event management through blockchain-native feature
 ## ⚡ Key Features
 
 ### 🎫 **Event Management**
+
 - Create and manage events with real-time capacity tracking
 - Public organizer profiles with on-chain reputation
 - Sponsor conditions with automated fund release
 
-### 🔐 **Privacy-First Attendance** 
+### 🔐 **Privacy-First Attendance**
+
 - Ephemeral access passes (24hr validity)
 - QR code-based check-in/check-out
 - No persistent identity storage
 
 ### 🏆 **NFT Proof System**
+
 - Proof-of-Attendance (PoA) NFTs on check-in
 - Completion NFTs for full event participation
 - Dynamic NFT metadata with event details
 
 ### 💰 **Automated Settlements**
+
 - Escrow-based sponsor funding
 - Performance-based fund release
 - Transparent rating and reputation system
 
 ### 🌐 **Token-Gated Communities**
+
 - Event-based community formation
 - NFT-gated access control
 - Governance and resource sharing
@@ -72,10 +77,11 @@ EIA Protocol enables seamless event management through blockchain-native feature
 ## 🏗️ Architecture
 
 ### Smart Contracts (Move on Sui)
+
 ```
 move/sources/
 ├── event_management.move      # Core event lifecycle
-├── identity_access.move       # Registration & passes  
+├── identity_access.move       # Registration & passes
 ├── attendance_verification.move # Check-in/out logic
 ├── nft_minting.move          # PoA & completion NFTs
 ├── escrow_settlement.move    # Sponsor fund management
@@ -85,6 +91,7 @@ move/sources/
 ```
 
 ### Frontend (React + TypeScript)
+
 ```
 src/
 ├── components/    # Reusable UI components
@@ -97,13 +104,15 @@ src/
 ## 📖 Usage
 
 ### For Event Organizers
+
 1. **Create Profile**: Build on-chain reputation
 2. **Create Event**: Set capacity, timing, and sponsor conditions
 3. **Activate Event**: Open registration to attendees
 4. **Verify Attendance**: Scan QR codes at event
 5. **Complete Event**: Trigger NFT minting and settlements
 
-### For Attendees  
+### For Attendees
+
 1. **Discover Events**: Browse through global event registry
 2. **Register**: Get ephemeral 24hr access pass
 3. **Check-in**: Scan QR code to receive PoA NFT
@@ -111,6 +120,7 @@ src/
 5. **Check-out**: Complete attendance for completion NFT
 
 ### For Sponsors
+
 1. **Fund Events**: Escrow SUI tokens with performance conditions
 2. **Track Performance**: Monitor attendance and ratings
 3. **Automatic Settlement**: Funds released based on event success
@@ -124,7 +134,6 @@ src/
 ## 📚 Documentation
 
 - [Smart Contract API](./move/docs/)
-
 
 ## 📄 License
 
