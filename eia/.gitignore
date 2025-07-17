@@ -1,0 +1,136 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Production builds
+dist/
+build/
+out/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+.yarn/
+.pnpm-store/
+
+# Vite specific
+.vite/
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
+
+# Cache directories
+.cache/
+.parcel-cache/
+.next/
+.nuxt/
+.vuepress/dist
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+.nyc_output/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional stylelint cache
+.stylelintcache
+
+# Microbundle cache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# Optional REPL history
+.node_repl_history
+
+# Editor directories and files
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# TypeScript
+*.tsbuildinfo
+
+# Temporary folders
+tmp/
+temp/
+
+# Storybook build outputs
+storybook-static/
+
+# Testing
+.jest/
+__snapshots__/
+
+# Wallet and blockchain specific
+.wallets/
+*.keystore
+*.key
+private-keys/
+
+# Sui specific frontend files
+sui.log
+.sui_history
+
+# Build artifacts
+*.tgz
+*.tar.gz
+
+# React specific
+.react/
+
+# Backup files
+*.backup
+*.bak
+
+# Local development
+.local/
+dev-dist/

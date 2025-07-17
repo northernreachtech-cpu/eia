@@ -1,0 +1,227 @@
+<svg viewBox="0 0 1400 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="primaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8E44FF;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6B21FF;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="secondaryGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10B981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#059669;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#F59E0B;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#D97706;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="redGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#EF4444;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#DC2626;stop-opacity:1" />
+    </linearGradient>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" 
+            refX="9" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#FFFFFF" />
+    </marker>
+  </defs>
+  
+  <!-- Background -->
+  <rect width="1400" height="900" fill="#0F0F23"/>
+  
+  <!-- Title -->
+  <text x="700" y="40" text-anchor="middle" fill="#FFFFFF" font-size="32" font-weight="bold" font-family="Arial, sans-serif">
+    EIA Protocol Event Lifecycle Flow
+  </text>
+  
+  <!-- Phase 1: Event Creation -->
+  <g id="phase1">
+    <rect x="50" y="80" width="280" height="140" rx="15" fill="url(#primaryGradient)" opacity="0.9"/>
+    <text x="190" y="110" text-anchor="middle" fill="#FFFFFF" font-size="16" font-weight="bold">PHASE 1: EVENT CREATION</text>
+    
+    <!-- Organizer Box -->
+    <rect x="80" y="140" width="100" height="60" rx="8" fill="#4F46E5"/>
+    <text x="130" y="160" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">ORGANIZER</text>
+    <text x="130" y="175" text-anchor="middle" fill="#FFFFFF" font-size="10">Creates Profile</text>
+    <text x="130" y="190" text-anchor="middle" fill="#FFFFFF" font-size="10">& Event</text>
+    
+    <!-- Event Box -->
+    <rect x="200" y="140" width="100" height="60" rx="8" fill="#6366F1"/>
+    <text x="250" y="160" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">EVENT</text>
+    <text x="250" y="175" text-anchor="middle" fill="#FFFFFF" font-size="10">Shared Object</text>
+    <text x="250" y="190" text-anchor="middle" fill="#FFFFFF" font-size="10">on Registry</text>
+  </g>
+  
+  <!-- Arrow and Label 1 -->
+  <path d="M 350 150 L 420 150" stroke="#FFFFFF" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="385" y="140" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">Sponsors Fund</text>
+  
+  <!-- Phase 2: Sponsor Funding -->
+  <g id="phase2">
+    <rect x="440" y="80" width="280" height="140" rx="15" fill="url(#accentGradient)" opacity="0.9"/>
+    <text x="580" y="110" text-anchor="middle" fill="#FFFFFF" font-size="16" font-weight="bold">PHASE 2: SPONSOR FUNDING</text>
+    
+    <!-- Sponsor Box -->
+    <rect x="470" y="140" width="100" height="60" rx="8" fill="#F59E0B"/>
+    <text x="520" y="160" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">SPONSOR</text>
+    <text x="520" y="175" text-anchor="middle" fill="#FFFFFF" font-size="10">Deposits SUI</text>
+    <text x="520" y="190" text-anchor="middle" fill="#FFFFFF" font-size="10">with Conditions</text>
+    
+    <!-- Escrow Box -->
+    <rect x="590" y="140" width="100" height="60" rx="8" fill="#F97316"/>
+    <text x="640" y="160" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">ESCROW</text>
+    <text x="640" y="175" text-anchor="middle" fill="#FFFFFF" font-size="10">Locked Funds</text>
+    <text x="640" y="190" text-anchor="middle" fill="#FFFFFF" font-size="10">Performance Based</text>
+  </g>
+  
+  <!-- Arrow and Label 2 -->
+  <path d="M 740 150 L 810 150" stroke="#FFFFFF" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="775" y="140" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">Users Register</text>
+  
+  <!-- Phase 3: User Registration -->
+  <g id="phase3">
+    <rect x="830" y="80" width="280" height="140" rx="15" fill="url(#secondaryGradient)" opacity="0.9"/>
+    <text x="970" y="110" text-anchor="middle" fill="#FFFFFF" font-size="16" font-weight="bold">PHASE 3: REGISTRATION</text>
+    
+    <!-- Users Box -->
+    <rect x="860" y="140" width="100" height="60" rx="8" fill="#10B981"/>
+    <text x="910" y="160" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">ATTENDEES</text>
+    <text x="910" y="175" text-anchor="middle" fill="#FFFFFF" font-size="10">Register for</text>
+    <text x="910" y="190" text-anchor="middle" fill="#FFFFFF" font-size="10">Events</text>
+    
+    <!-- QR Pass Box -->
+    <rect x="980" y="140" width="100" height="60" rx="8" fill="#059669"/>
+    <text x="1030" y="160" text-anchor="middle" fill="#FFFFFF" font-size="12" font-weight="bold">QR PASS</text>
+    <text x="1030" y="175" text-anchor="middle" fill="#FFFFFF" font-size="10">24hr Access</text>
+    <text x="1030" y="190" text-anchor="middle" fill="#FFFFFF" font-size="10">Token</text>
+  </g>
+  
+  <!-- Vertical Arrow -->
+  <path d="M 970 240 L 970 290" stroke="#FFFFFF" stroke-width="3" marker-end="url(#arrowhead)"/>
+  <text x="1000" y="270" fill="#FFFFFF" font-size="12" font-weight="bold">Attend Event</text>
+  
+  <!-- Phase 4: Event Attendance -->
+  <g id="phase4">
+    <rect x="830" y="310" width="280" height="140" rx="15" fill="url(#redGradient)" opacity="0.9"/>
+    <text x="970" y="340" text-anchor="middle" fill="#FFFFFF" font-size="16" font-weight="bold">PHASE 4: ATTENDANCE</text>
+    
+    <!-- Check-in Box -->
+    <rect x="860" y="370" width="80" height="60" rx="8" fill="#EF4444"/>
+    <text x="900" y="390" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">CHECK-IN</text>
+    <text x="900" y="405" text-anchor="middle" fill="#FFFFFF" font-size="9">QR Scan</text>
+    <text x="900" y="418" text-anchor="middle" fill="#FFFFFF" font-size="9">Get PoA NFT</text>
+    
+    <!-- Event Activity Box -->
+    <rect x="955" y="370" width="80" height="60" rx="8" fill="#F87171"/>
+    <text x="995" y="390" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">ACTIVITY</text>
+    <text x="995" y="405" text-anchor="middle" fill="#FFFFFF" font-size="9">Participate</text>
+    <text x="995" y="418" text-anchor="middle" fill="#FFFFFF" font-size="9">in Event</text>
+    
+    <!-- Check-out Box -->
+    <rect x="1050" y="370" width="80" height="60" rx="8" fill="#EF4444"/>
+    <text x="1090" y="390" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">CHECK-OUT</text>
+    <text x="1090" y="405" text-anchor="middle" fill="#FFFFFF" font-size="9">Final Scan</text>
+    <text x="1090" y="418" text-anchor="middle" fill="#FFFFFF" font-size="9">Get Completion</text>
+  </g>
+  
+  <!-- Smart Contract Layer -->
+  <rect x="50" y="500" width="1300" height="180" rx="15" fill="#1F2937" stroke="#374151" stroke-width="2"/>
+  <text x="700" y="530" text-anchor="middle" fill="#FFFFFF" font-size="20" font-weight="bold">SMART CONTRACT LAYER (8 MODULES)</text>
+  
+  <!-- Smart Contracts Row 1 -->
+  <g id="contracts-row1">
+    <!-- Event Management -->
+    <rect x="80" y="550" width="140" height="50" rx="8" fill="#4F46E5" opacity="0.8"/>
+    <text x="150" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">EVENT MANAGEMENT</text>
+    <text x="150" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">Core event lifecycle</text>
+    
+    <!-- Identity Access -->
+    <rect x="240" y="550" width="140" height="50" rx="8" fill="#10B981" opacity="0.8"/>
+    <text x="310" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">IDENTITY ACCESS</text>
+    <text x="310" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">Registration & passes</text>
+    
+    <!-- Attendance -->
+    <rect x="400" y="550" width="140" height="50" rx="8" fill="#F59E0B" opacity="0.8"/>
+    <text x="470" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">ATTENDANCE</text>
+    <text x="470" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">Check-in/out logic</text>
+    
+    <!-- NFT Minting -->
+    <rect x="560" y="550" width="140" height="50" rx="8" fill="#EC4899" opacity="0.8"/>
+    <text x="630" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">NFT MINTING</text>
+    <text x="630" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">PoA & completion NFTs</text>
+  </g>
+  
+  <!-- Smart Contracts Row 2 -->
+  <g id="contracts-row2">
+    <!-- Escrow -->
+    <rect x="720" y="550" width="140" height="50" rx="8" fill="#EF4444" opacity="0.8"/>
+    <text x="790" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">ESCROW</text>
+    <text x="790" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">Fund management</text>
+    
+    <!-- Rating -->
+    <rect x="880" y="550" width="140" height="50" rx="8" fill="#8B5CF6" opacity="0.8"/>
+    <text x="950" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">RATING</text>
+    <text x="950" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">Reputation system</text>
+    
+    <!-- Airdrop -->
+    <rect x="1040" y="550" width="140" height="50" rx="8" fill="#06B6D4" opacity="0.8"/>
+    <text x="1110" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">AIRDROP</text>
+    <text x="1110" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">Token distribution</text>
+    
+    <!-- Community -->
+    <rect x="1200" y="550" width="140" height="50" rx="8" fill="#84CC16" opacity="0.8"/>
+    <text x="1270" y="570" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">COMMUNITY</text>
+    <text x="1270" y="585" text-anchor="middle" fill="#FFFFFF" font-size="9">Token-gated access</text>
+  </g>
+  
+  <!-- Outcomes -->
+  <rect x="50" y="720" width="1300" height="120" rx="15" fill="#111827" stroke="#374151" stroke-width="2"/>
+  <text x="700" y="750" text-anchor="middle" fill="#FFFFFF" font-size="20" font-weight="bold">OUTCOMES & REWARDS</text>
+  
+  <!-- Outcome Boxes -->
+  <g id="outcomes">
+    <!-- PoA NFT -->
+    <rect x="100" y="770" width="120" height="50" rx="8" fill="url(#primaryGradient)"/>
+    <text x="160" y="790" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">POA NFT</text>
+    <text x="160" y="805" text-anchor="middle" fill="#FFFFFF" font-size="9">Proof of Attendance</text>
+    
+    <!-- Completion NFT -->
+    <rect x="240" y="770" width="120" height="50" rx="8" fill="url(#secondaryGradient)"/>
+    <text x="300" y="790" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">COMPLETION NFT</text>
+    <text x="300" y="805" text-anchor="middle" fill="#FFFFFF" font-size="9">Full participation</text>
+    
+    <!-- Reputation -->
+    <rect x="380" y="770" width="120" height="50" rx="8" fill="url(#accentGradient)"/>
+    <text x="440" y="790" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">REPUTATION</text>
+    <text x="440" y="805" text-anchor="middle" fill="#FFFFFF" font-size="9">Cross-event points</text>
+    
+    <!-- Token Rewards -->
+    <rect x="520" y="770" width="120" height="50" rx="8" fill="url(#primaryGradient)"/>
+    <text x="580" y="790" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">TOKENS</text>
+    <text x="580" y="805" text-anchor="middle" fill="#FFFFFF" font-size="9">Airdrop rewards</text>
+    
+    <!-- Community Access -->
+    <rect x="660" y="770" width="120" height="50" rx="8" fill="url(#secondaryGradient)"/>
+    <text x="720" y="790" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">COMMUNITY</text>
+    <text x="720" y="805" text-anchor="middle" fill="#FFFFFF" font-size="9">Exclusive access</text>
+    
+    <!-- Sponsor Settlement -->
+    <rect x="800" y="770" width="120" height="50" rx="8" fill="url(#accentGradient)"/>
+    <text x="860" y="790" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">SETTLEMENT</text>
+    <text x="860" y="805" text-anchor="middle" fill="#FFFFFF" font-size="9">Automated payout</text>
+    
+    <!-- Governance -->
+    <rect x="1080" y="770" width="120" height="50" rx="8" fill="url(#primaryGradient)"/>
+    <text x="1140" y="790" text-anchor="middle" fill="#FFFFFF" font-size="11" font-weight="bold">GOVERNANCE</text>
+    <text x="1140" y="805" text-anchor="middle" fill="#FFFFFF" font-size="9">Community votes</text>
+  </g>
+  
+  <!-- Flow arrows from phases to contracts -->
+  <path d="M 190 240 L 190 280 L 150 500" stroke="#FFFFFF" stroke-width="2" marker-end="url(#arrowhead)" opacity="0.7"/>
+  <path d="M 580 240 L 580 280 L 470 500" stroke="#FFFFFF" stroke-width="2" marker-end="url(#arrowhead)" opacity="0.7"/>
+  <path d="M 970 460 L 970 480 L 950 500" stroke="#FFFFFF" stroke-width="2" marker-end="url(#arrowhead)" opacity="0.7"/>
+  
+  <!-- Flow arrow from contracts to outcomes -->
+  <path d="M 700 630 L 700 660 L 700 710" stroke="#FFFFFF" stroke-width="3" marker-end="url(#arrowhead)"/>
+  
+  <!-- Key Benefits -->
+  <text x="700" y="880" text-anchor="middle" fill="#FFFFFF" font-size="16" font-weight="bold">
+    DECENTRALIZED • PRIVACY-PRESERVING • PERFORMANCE-BASED • COMMUNITY-DRIVEN
+  </text>
+</svg>
