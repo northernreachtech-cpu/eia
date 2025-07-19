@@ -1,80 +1,23 @@
 import { Transaction } from "@mysten/sui/transactions";
-import { bcs } from "@mysten/sui/bcs";
-import { keccak_256 } from "@noble/hashes/sha3";
 import { suiClient } from "../../config/sui";
 
 // System clock object ID is constant
 const CLOCK_ID = "0x6";
 
-// Types based on Move module documentation
 export interface Registration {
-  id: string;
-  event_id: string;
   wallet: string;
   registered_at: number;
-  check_in_time: number;
-  check_out_time: number;
-  status: number;
+  pass_hash: string;
+  checked_in: boolean;
 }
 
-export interface EphemeralPass {
-  pass_id: number;
-  event_id: string;
+export interface PassInfo {
   wallet: string;
-  expires_at: number;
-  verification_hash: Uint8Array;
-}
-
-export interface PassGenerated {
   event_id: string;
-  wallet: string;
-  pass_id: number;
+  created_at: number;
   expires_at: number;
-}
-
-// Registration Status
-export const REGISTRATION_STATUS = {
-  REGISTERED: 0,
-  CHECKED_IN: 1,
-  CHECKED_OUT: 2,
-  NO_SHOW: 3,
-} as const;
-
-// Error Codes
-export const ERROR_CODES = {
-  ENotRegistered: 1,
-  EAlreadyRegistered: 2,
-  EEventNotActive: 3,
-  ECapacityExceeded: 4,
-  EInvalidPass: 5,
-  EPassExpired: 6,
-  EPassAlreadyUsed: 7,
-} as const;
-
-/**
- * Generates the verification hash for an ephemeral pass
- * This must match the on-chain hash generation logic
- */
-export function generatePassHash(
-  passId: bigint,
-  eventId: string,
-  wallet: string
-): Uint8Array {
-  // Serialize using Sui BCS compatible types and convert to bytes
-  const passIdBytes = bcs.U64.serialize(passId).toBytes();
-  const eventIdBytes = bcs.Address.serialize(eventId).toBytes();
-  const walletBytes = bcs.Address.serialize(wallet).toBytes();
-
-  // Concatenate buffers
-  const combined = new Uint8Array(
-    passIdBytes.length + eventIdBytes.length + walletBytes.length
-  );
-  combined.set(passIdBytes, 0);
-  combined.set(eventIdBytes, passIdBytes.length);
-  combined.set(walletBytes, passIdBytes.length + eventIdBytes.length);
-
-  // Hash with keccak256
-  return keccak_256(combined);
+  used: boolean;
+  pass_id: number;
 }
 
 export class IdentityAccessSDK {
@@ -82,6 +25,10 @@ export class IdentityAccessSDK {
 
   constructor(packageId: string) {
     this.packageId = packageId;
+  }
+
+  getPackageId(): string {
+    return this.packageId;
   }
 
   /**
@@ -106,13 +53,13 @@ export class IdentityAccessSDK {
   }
 
   /**
-   * Regenerate an ephemeral pass
+   * Generate a new pass for an event
    */
-  regeneratePass(eventId: string, registrationRegistryId: string): Transaction {
+  generatePass(eventId: string, registrationRegistryId: string): Transaction {
     const tx = new Transaction();
 
     tx.moveCall({
-      target: `${this.packageId}::identity_access::regenerate_pass`,
+      target: `${this.packageId}::identity_access::generate_new_pass`,
       arguments: [
         tx.object(eventId),
         tx.object(registrationRegistryId),
@@ -124,11 +71,11 @@ export class IdentityAccessSDK {
   }
 
   /**
-   * Validate an ephemeral pass
+   * Validate a pass
    */
   validatePass(
+    passHash: Uint8Array,
     eventId: string,
-    verificationHash: Uint8Array,
     registrationRegistryId: string
   ): Transaction {
     const tx = new Transaction();
@@ -136,8 +83,8 @@ export class IdentityAccessSDK {
     tx.moveCall({
       target: `${this.packageId}::identity_access::validate_pass`,
       arguments: [
+        tx.pure.vector("u8", passHash),
         tx.object(eventId),
-        tx.pure(verificationHash),
         tx.object(registrationRegistryId),
         tx.object(CLOCK_ID),
       ],
@@ -147,15 +94,118 @@ export class IdentityAccessSDK {
   }
 
   /**
-   * Check if a user is registered for an event
+   * Generate QR code data for event registration
    */
-  async isRegistered(
-    _eventId: string,
-    _walletAddress: string,
-    registrationRegistryId: string
-  ): Promise<boolean> {
+  generateQRCodeData(
+    eventId: string,
+    userAddress: string,
+    registration: Registration
+  ): string {
+    const qrData = {
+      event_id: eventId,
+      user_address: userAddress,
+      registration_hash: registration.pass_hash,
+      registered_at: registration.registered_at,
+      timestamp: Date.now(),
+    };
+
+    return JSON.stringify(qrData);
+  }
+
+  /**
+   * Parse QR code data
+   */
+  parseQRCodeData(qrData: string): any {
     try {
-      // Query the registration registry
+      return JSON.parse(qrData);
+    } catch (error) {
+      console.error("Error parsing QR code data:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get registration status for a user
+   */
+  async getRegistrationStatus(
+    eventId: string,
+    userAddress: string,
+    registrationRegistryId: string
+  ): Promise<Registration | null> {
+    try {
+      console.log("Checking registration status:", {
+        eventId,
+        userAddress,
+        registrationRegistryId,
+      });
+
+      // Query recent transactions to check if user registered for this event
+      const { data: transactions } = await suiClient.queryTransactionBlocks({
+        filter: {
+          MoveFunction: {
+            package: this.packageId,
+            module: "identity_access",
+            function: "register_for_event",
+          },
+        },
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+        },
+        limit: 50,
+      });
+
+      console.log("Found registration transactions:", transactions.length);
+
+      // Look for UserRegistered event for this specific user and event
+      for (const txn of transactions) {
+        if (txn.events) {
+          for (const event of txn.events) {
+            if (event.type?.includes("UserRegistered")) {
+              const eventData = event.parsedJson as {
+                event_id: string;
+                wallet: string;
+                registered_at: number;
+              };
+
+              console.log("Registration event:", eventData);
+
+              if (
+                eventData &&
+                eventData.event_id === eventId &&
+                eventData.wallet === userAddress
+              ) {
+                console.log("Found registration for user!");
+                return {
+                  wallet: eventData.wallet,
+                  registered_at: eventData.registered_at,
+                  pass_hash: "", // We don't have this from the event
+                  checked_in: false, // Would need to check attendance separately
+                };
+              }
+            }
+          }
+        }
+      }
+
+      console.log("No registration found for user");
+      return null;
+    } catch (error) {
+      console.error("Error fetching registration status:", error);
+      return null;
+    }
+  }
+
+  /**
+   * Get all registrations for an event
+   */
+  async getEventRegistrations(
+    _eventId: string,
+    registrationRegistryId: string
+  ): Promise<Registration[]> {
+    try {
+      // Query the registration registry for event registrations
       const response = await suiClient.getObject({
         id: registrationRegistryId,
         options: {
@@ -168,108 +218,15 @@ export class IdentityAccessSDK {
         !response.data?.content ||
         response.data.content.dataType !== "moveObject"
       ) {
-        return false;
+        return [];
       }
 
       // This would need to be implemented based on the actual registry structure
-      // For now, return false as placeholder
-      return false;
-    } catch (error) {
-      console.error("Error checking registration:", error);
-      return false;
-    }
-  }
-
-  /**
-   * Get registration details
-   */
-  async getRegistration(
-    _eventId: string,
-    _walletAddress: string,
-    _registrationRegistryId: string
-  ): Promise<Registration | null> {
-    try {
-      // This would query the specific registration object
-      // Implementation depends on the actual registry structure
-      return null;
-    } catch (error) {
-      console.error("Error fetching registration:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get all registrations for a user
-   */
-  async getUserRegistrations(
-    _walletAddress: string,
-    _registrationRegistryId: string
-  ): Promise<Registration[]> {
-    try {
-      // This would query all registrations for a user
-      // Implementation depends on the actual registry structure
+      // For now, return empty array as placeholder
       return [];
     } catch (error) {
-      console.error("Error fetching user registrations:", error);
+      console.error("Error fetching event registrations:", error);
       return [];
-    }
-  }
-
-  /**
-   * Create an ephemeral pass from a PassGenerated event
-   */
-  createEphemeralPass(passGenerated: PassGenerated): EphemeralPass {
-    const verificationHash = generatePassHash(
-      BigInt(passGenerated.pass_id),
-      passGenerated.event_id,
-      passGenerated.wallet
-    );
-
-    return {
-      pass_id: passGenerated.pass_id,
-      event_id: passGenerated.event_id,
-      wallet: passGenerated.wallet,
-      expires_at: passGenerated.expires_at,
-      verification_hash: verificationHash,
-    };
-  }
-
-  /**
-   * Check if a pass is expired
-   */
-  isPassExpired(pass: EphemeralPass): boolean {
-    return Date.now() > pass.expires_at;
-  }
-
-  /**
-   * Generate QR code data for an ephemeral pass
-   */
-  generateQRCodeData(pass: EphemeralPass): string {
-    return JSON.stringify({
-      pass_id: pass.pass_id,
-      event_id: pass.event_id,
-      wallet: pass.wallet,
-      expires_at: pass.expires_at,
-      verification_hash: Array.from(pass.verification_hash),
-    });
-  }
-
-  /**
-   * Parse QR code data back to ephemeral pass
-   */
-  parseQRCodeData(qrData: string): EphemeralPass | null {
-    try {
-      const data = JSON.parse(qrData);
-      return {
-        pass_id: data.pass_id,
-        event_id: data.event_id,
-        wallet: data.wallet,
-        expires_at: data.expires_at,
-        verification_hash: new Uint8Array(data.verification_hash),
-      };
-    } catch (error) {
-      console.error("Error parsing QR code data:", error);
-      return null;
     }
   }
 }

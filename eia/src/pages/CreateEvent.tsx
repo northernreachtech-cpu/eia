@@ -17,7 +17,7 @@ import { useEIAProtocolSDK } from "../lib/sdk";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import useScrollToTop from "../hooks/useScrollToTop";
-import { suiClient } from "../config/sui";
+import { suiClient, useNetworkVariable } from "../config/sui";
 
 // Get ImgBB API key from environment variable
 const IMGBB_KEY = import.meta.env.VITE_IMGBB_API_KEY;
@@ -28,6 +28,7 @@ const CreateEvent = () => {
   const currentAccount = useCurrentAccount();
   const sdk = useEIAProtocolSDK();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
+  const eventRegistryId = useNetworkVariable("eventRegistryId");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -160,10 +161,9 @@ const CreateEvent = () => {
       setIsSubmitting(true);
       setError("");
 
-      // Convert date and time to timestamp
-      const startTime =
-        new Date(`${formData.date}T${formData.time}`).getTime() / 1000;
-      const endTime = startTime + 3600 * 2; // Default 2 hours duration
+      // Convert date and time to timestamp (Move expects milliseconds)
+      const startTime = new Date(`${formData.date}T${formData.time}`).getTime();
+      const endTime = startTime + 3600 * 2 * 1000; // Default 2 hours duration in milliseconds
 
       // Create event transaction with actual profileId
       const tx = sdk.eventManagement.createEvent(
@@ -177,7 +177,7 @@ const CreateEvent = () => {
         0, // minCompletionRate
         0, // minAvgRating
         formData.imageUrl || "", // Use uploaded image URL
-        "0x2", // eventRegistryId - this is a shared object, using default registry
+        eventRegistryId, // Use actual registry ID from configuration
         profileId // actual profile ID from OrganizerCap
       );
 
@@ -187,7 +187,18 @@ const CreateEvent = () => {
         {
           onSuccess: (result) => {
             console.log("Event created successfully:", result);
-            navigate("/dashboard/organizer");
+
+            // Extract event ID from the result
+            const eventId =
+              sdk.eventManagement.extractEventIdFromResult(result);
+            if (eventId) {
+              console.log("Event ID:", eventId);
+              // You can now use this event ID to fetch event details or navigate to event page
+              navigate(`/event/${eventId}`);
+            } else {
+              console.warn("Could not extract event ID from result");
+              navigate("/dashboard/organizer");
+            }
           },
           onError: (error) => {
             console.error("Error creating event:", error);

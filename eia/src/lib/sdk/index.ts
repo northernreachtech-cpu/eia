@@ -14,11 +14,13 @@ export class EIAProtocolSDK {
   }
 }
 
-// Hook to get SDK instance with network variables
+// React hook to use the SDK
 export function useEIAProtocolSDK(): EIAProtocolSDK {
   const packageId = useNetworkVariable("packageId");
 
-  return useMemo(() => new EIAProtocolSDK(packageId), [packageId]);
+  return useMemo(() => {
+    return new EIAProtocolSDK(packageId);
+  }, [packageId]);
 }
 
 // Re-export types and utilities (excluding ERROR_CODES to avoid conflicts)
@@ -31,13 +33,9 @@ export {
 
 export {
   IdentityAccessSDK,
-  REGISTRATION_STATUS,
-  generatePassHash,
   type Registration,
-  type EphemeralPass,
-  type PassGenerated,
+  type PassInfo,
 } from "./identityAccess";
 
 // Re-export ERROR_CODES with explicit naming to avoid conflicts
 export { ERROR_CODES as EVENT_MANAGEMENT_ERROR_CODES } from "./eventManagement";
-export { ERROR_CODES as IDENTITY_ACCESS_ERROR_CODES } from "./identityAccess";

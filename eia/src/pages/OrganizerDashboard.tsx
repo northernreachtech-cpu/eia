@@ -9,10 +9,15 @@ import {
   Settings,
   Plus,
   Loader2,
+  Play,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+} from "@mysten/dapp-kit";
 import { useEIAProtocolSDK } from "../lib/sdk";
+import { useNetworkVariable } from "../config/sui";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import StatCard from "../components/StatCard";
@@ -29,67 +34,93 @@ interface Event {
   escrowStatus: "pending" | "released" | "locked";
   rating: number;
   revenue: number;
+  state: number; // Add state for activation logic
 }
 
 const OrganizerDashboard = () => {
   useScrollToTop();
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
+  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const sdk = useEIAProtocolSDK();
+  const eventRegistryId = useNetworkVariable("eventRegistryId");
 
   const [loading, setLoading] = useState(true);
-  const [organizerProfile, setOrganizerProfile] = useState<any>(null);
+  const [activatingEvent, setActivatingEvent] = useState<string | null>(null);
+  // const [organizerProfile, setOrganizerProfile] = useState<any>(null);
   const [events, setEvents] = useState<Event[]>([]);
 
-  useEffect(() => {
-    const loadOrganizerData = async () => {
-      if (!currentAccount) return;
+  const handleActivateEvent = async (eventId: string) => {
+    try {
+      setActivatingEvent(eventId);
+      const tx = sdk.eventManagement.activateEvent(eventId, eventRegistryId);
 
-      try {
-        setLoading(true);
-        console.log("Loading organizer data for:", currentAccount.address);
+      await signAndExecute({
+        transaction: tx,
+      });
 
-        // Check if user has profile
-        const hasProfile = await sdk.eventManagement.hasOrganizerProfile(
-          currentAccount.address
-        );
-        if (!hasProfile) {
-          navigate("/create-organizer-profile");
-          return;
-        }
+      // Reload events to reflect the state change
+      await loadOrganizerData();
+    } catch (error) {
+      console.error("Error activating event:", error);
+      alert("Failed to activate event. Please try again.");
+    } finally {
+      setActivatingEvent(null);
+    }
+  };
 
-        // Get organizer's events
-        const organizerEvents = await sdk.eventManagement.getEventsByOrganizer(
-          currentAccount.address
-        );
-        console.log("Organizer events:", organizerEvents);
+  const loadOrganizerData = async () => {
+    if (!currentAccount) return;
 
-        // Transform events to match interface
-        const transformedEvents = organizerEvents.map((event) => ({
-          id: event.id,
-          title: event.name,
-          date: new Date(event.start_time * 1000).toISOString().split("T")[0],
-          status:
-            event.state === 0
-              ? "upcoming"
-              : event.state === 1
-              ? "active"
-              : "completed",
-          checkedIn: 0, // TODO: Get from registration data
-          totalCapacity: 100, // TODO: Get from event data
-          escrowStatus: "pending",
-          rating: 0, // TODO: Get from event data
-          revenue: 0, // TODO: Get from event data
-        }));
+    try {
+      setLoading(true);
+      console.log("Loading organizer data for:", currentAccount.address);
 
-        setEvents(transformedEvents);
-      } catch (error) {
-        console.error("Error loading organizer data:", error);
-      } finally {
-        setLoading(false);
+      // Check if user has profile
+      const hasProfile = await sdk.eventManagement.hasOrganizerProfile(
+        currentAccount.address
+      );
+      if (!hasProfile) {
+        navigate("/create-organizer-profile");
+        return;
       }
-    };
 
+      // Get organizer's events
+      const organizerEvents = await sdk.eventManagement.getEventsByOrganizer(
+        currentAccount.address,
+        eventRegistryId
+      );
+      console.log("Organizer events:", organizerEvents);
+
+      // Transform events to match interface
+      const transformedEvents = organizerEvents.map((event) => ({
+        id: event.id,
+        title: event.name,
+        date: new Date(event.start_time * 1000).toISOString().split("T")[0],
+        status: (
+          event.state === 0
+            ? "upcoming"
+            : event.state === 1
+            ? "active"
+            : "completed"
+        ) as "upcoming" | "active" | "completed",
+        checkedIn: 0, // TODO: Get from registration data
+        totalCapacity: 100, // TODO: Get from event data
+        escrowStatus: "pending" as "pending" | "released" | "locked",
+        rating: 0, // TODO: Get from event data
+        revenue: 0, // TODO: Get from event data
+        state: event.state, // Add state for activation logic
+      }));
+
+      setEvents(transformedEvents);
+    } catch (error) {
+      console.error("Error loading organizer data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadOrganizerData();
   }, [currentAccount, sdk, navigate]);
 
@@ -315,6 +346,23 @@ const OrganizerDashboard = () => {
 
                   {/* Actions */}
                   <div className="flex gap-2 mt-4 sm:mt-6">
+                    {event.state === 0 && (
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleActivateEvent(event.id)}
+                        disabled={activatingEvent === event.id}
+                      >
+                        {activatingEvent === event.id ? (
+                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                        ) : (
+                          <Play className="mr-1 h-3 w-3" />
+                        )}
+                        {activatingEvent === event.id
+                          ? "Activating..."
+                          : "Activate"}
+                      </Button>
+                    )}
                     <Button
                       variant="outline"
                       size="sm"

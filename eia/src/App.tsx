@@ -6,7 +6,8 @@ import { networkConfig } from "./config/sui";
 import Navbar from "./components/Navbar";
 import LandingPage from "./pages/LandingPage";
 import CreateEvent from "./pages/CreateEvent";
-import MyEvents from "./pages/MyEvents";
+import Events from "./pages/Events";
+import MyEventsPage from "./pages/MyEvents";
 import EventDetails from "./pages/EventDetails";
 import ConvenerMarketplace from "./pages/ConvenerMarketplace";
 import OrganizerDashboard from "./pages/OrganizerDashboard";
@@ -28,7 +29,8 @@ function AppContent() {
       <Navbar />
       <Routes>
         <Route path="/" element={<LandingPage />} />
-        <Route path="/events" element={<MyEvents />} />
+        <Route path="/events" element={<Events />} />
+        <Route path="/my-events" element={<MyEventsPage />} />
         <Route path="/event/create" element={<CreateEvent />} />
         <Route path="/event/:id" element={<EventDetails />} />
         <Route path="/organizers" element={<ConvenerMarketplace />} />
@@ -46,7 +48,7 @@ function AppContent() {
 
 function App() {
   return (
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
         <WalletProvider autoConnect>
           <Router>
@@ -54,7 +56,7 @@ function App() {
           </Router>
         </WalletProvider>
       </SuiClientProvider>
-      </QueryClientProvider>
+    </QueryClientProvider>
   );
 }
 

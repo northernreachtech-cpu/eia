@@ -190,6 +190,39 @@ export class EventManagementSDK {
   }
 
   /**
+   * Extract event ID from transaction result
+   */
+  extractEventIdFromResult(result: any): string | null {
+    try {
+      // Look for EventCreated event in the transaction result
+      if (result.events) {
+        for (const event of result.events) {
+          if (event.type?.includes("EventCreated")) {
+            return event.parsedJson?.event_id || null;
+          }
+        }
+      }
+
+      // Fallback: look for created objects
+      if (result.objectChanges) {
+        for (const change of result.objectChanges) {
+          if (
+            change.type === "created" &&
+            change.objectType?.includes("Event")
+          ) {
+            return change.objectId;
+          }
+        }
+      }
+
+      return null;
+    } catch (error) {
+      console.error("Error extracting event ID:", error);
+      return null;
+    }
+  }
+
+  /**
    * Get event details by ID
    */
   async getEvent(eventId: string): Promise<Event | null> {
@@ -275,27 +308,77 @@ export class EventManagementSDK {
   /**
    * Get events by organizer address
    */
-  async getEventsByOrganizer(_organizerAddress: string): Promise<EventInfo[]> {
+  async getEventsByOrganizer(
+    organizerAddress: string,
+    _eventRegistryId: string
+  ): Promise<EventInfo[]> {
     try {
-      // Query events from the registry
-      const response = await suiClient.getObject({
-        id: CLOCK_ID, // This ID is no longer used for the registry, but kept for consistency
-        options: {
-          showContent: true,
-          showType: true,
+      console.log("Fetching events for organizer:", organizerAddress);
+
+      // Since events are shared objects, we need to query them differently
+      // For now, let's use a simple approach: query recent transactions and extract events
+      const { data: transactions } = await suiClient.queryTransactionBlocks({
+        filter: {
+          MoveFunction: {
+            package: this.packageId,
+            module: "event_management",
+            function: "create_event",
+          },
         },
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+        },
+        limit: 50,
       });
 
-      if (
-        !response.data?.content ||
-        response.data.content.dataType !== "moveObject"
-      ) {
-        return [];
+      console.log("Found transactions:", transactions.length);
+      const eventInfos: EventInfo[] = [];
+
+      for (const txn of transactions) {
+        if (txn.events) {
+          for (const event of txn.events) {
+            console.log("Event type:", event.type);
+            if (event.type?.includes("EventCreated")) {
+              const eventData = event.parsedJson as {
+                event_id: string;
+                organizer: string;
+              };
+              console.log("Event data:", eventData);
+              if (
+                eventData &&
+                eventData.event_id &&
+                eventData.organizer === organizerAddress
+              ) {
+                console.log("Found event for organizer:", eventData.event_id);
+                // Get the full event object
+                const eventResponse = await suiClient.getObject({
+                  id: eventData.event_id,
+                  options: {
+                    showContent: true,
+                    showType: true,
+                  },
+                });
+
+                if (eventResponse.data?.content?.dataType === "moveObject") {
+                  const fields = eventResponse.data.content.fields as any;
+                  eventInfos.push({
+                    id: eventData.event_id,
+                    name: fields.name,
+                    organizer: fields.organizer,
+                    start_time: parseInt(fields.start_time),
+                    state: parseInt(fields.state),
+                  });
+                }
+              }
+            }
+          }
+        }
       }
 
-      // This would need to be implemented based on the actual registry structure
-      // For now, return empty array as placeholder
-      return [];
+      console.log("Returning events:", eventInfos.length);
+      return eventInfos;
     } catch (error) {
       console.error("Error fetching events by organizer:", error);
       return [];
@@ -307,11 +390,129 @@ export class EventManagementSDK {
    */
   async getActiveEvents(): Promise<EventInfo[]> {
     try {
-      // This would query the EventRegistry for active events
-      // Implementation depends on the actual registry structure
-      return [];
+      // Query recent transactions to get all events
+      const { data: transactions } = await suiClient.queryTransactionBlocks({
+        filter: {
+          MoveFunction: {
+            package: this.packageId,
+            module: "event_management",
+            function: "create_event",
+          },
+        },
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+        },
+        limit: 100,
+      });
+
+      const eventInfos: EventInfo[] = [];
+
+      for (const txn of transactions) {
+        if (txn.events) {
+          for (const event of txn.events) {
+            if (event.type?.includes("EventCreated")) {
+              const eventData = event.parsedJson as {
+                event_id: string;
+                organizer: string;
+              };
+              if (eventData && eventData.event_id) {
+                // Get the full event object
+                const eventResponse = await suiClient.getObject({
+                  id: eventData.event_id,
+                  options: {
+                    showContent: true,
+                    showType: true,
+                  },
+                });
+
+                if (eventResponse.data?.content?.dataType === "moveObject") {
+                  const fields = eventResponse.data.content.fields as any;
+                  eventInfos.push({
+                    id: eventData.event_id,
+                    name: fields.name,
+                    organizer: fields.organizer,
+                    start_time: parseInt(fields.start_time),
+                    state: parseInt(fields.state),
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return eventInfos;
     } catch (error) {
       console.error("Error fetching active events:", error);
+      return [];
+    }
+  }
+
+  /**
+   * Get all organizers with profiles
+   */
+  async getAllOrganizers(): Promise<OrganizerProfile[]> {
+    try {
+      // Query for all OrganizerProfile objects
+      const { data: transactions } = await suiClient.queryTransactionBlocks({
+        filter: {
+          MoveFunction: {
+            package: this.packageId,
+            module: "event_management",
+            function: "create_organizer_profile",
+          },
+        },
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+        },
+        limit: 100,
+      });
+
+      const organizers: OrganizerProfile[] = [];
+
+      for (const txn of transactions) {
+        if (txn.objectChanges) {
+          for (const change of txn.objectChanges) {
+            if (
+              change.type === "created" &&
+              change.objectType?.includes("OrganizerProfile")
+            ) {
+              const profileResponse = await suiClient.getObject({
+                id: change.objectId,
+                options: {
+                  showContent: true,
+                  showType: true,
+                },
+              });
+
+              if (profileResponse.data?.content?.dataType === "moveObject") {
+                const fields = profileResponse.data.content.fields as any;
+                organizers.push({
+                  id: fields.id.id,
+                  address: fields.address,
+                  name: fields.name,
+                  bio: fields.bio,
+                  total_events: parseInt(fields.total_events),
+                  successful_events: parseInt(fields.successful_events),
+                  total_attendees_served: parseInt(
+                    fields.total_attendees_served
+                  ),
+                  avg_rating: parseInt(fields.avg_rating),
+                  created_at: parseInt(fields.created_at),
+                });
+              }
+            }
+          }
+        }
+      }
+
+      return organizers;
+    } catch (error) {
+      console.error("Error fetching organizers:", error);
       return [];
     }
   }
@@ -358,6 +559,50 @@ export class EventManagementSDK {
     } catch (error) {
       console.error("Error checking organizer profile:", error);
       return false;
+    }
+  }
+
+  /**
+   * Get real-time attendee count for an event
+   */
+  async getEventAttendeeCount(
+    eventId: string,
+    _registrationRegistryId: string
+  ): Promise<number> {
+    try {
+      // For now, return 0 as placeholder
+      // This would need to be implemented by querying the registration registry
+      console.log("Getting attendee count for event:", eventId);
+      return 0;
+    } catch (error) {
+      console.error("Error getting attendee count:", error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get event with real-time attendee count
+   */
+  async getEventWithAttendeeCount(
+    eventId: string,
+    registrationRegistryId: string
+  ): Promise<Event | null> {
+    try {
+      const event = await this.getEvent(eventId);
+      if (!event) return null;
+
+      const attendeeCount = await this.getEventAttendeeCount(
+        eventId,
+        registrationRegistryId
+      );
+
+      return {
+        ...event,
+        current_attendees: attendeeCount,
+      };
+    } catch (error) {
+      console.error("Error getting event with attendee count:", error);
+      return null;
     }
   }
 }

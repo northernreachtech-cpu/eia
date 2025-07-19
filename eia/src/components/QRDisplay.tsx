@@ -1,138 +1,88 @@
-import { useEffect, useRef } from 'react';
-import QRCode from 'qrcode';
-import { Download, Share2 } from 'lucide-react';
-import Button from './Button';
-import Card from './Card';
+import { useState, useEffect } from "react";
+import { X, Download } from "lucide-react";
+import Card from "./Card";
+import Button from "./Button";
 
 interface QRDisplayProps {
-  data: string;
-  title?: string;
-  subtitle?: string;
-  size?: number;
-  onClose?: () => void;
-  showActions?: boolean;
+  qrData: string;
+  eventName: string;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-const QRDisplay = ({ 
-  data, 
-  title = "QR Code", 
-  subtitle, 
-  size = 256, 
-  onClose,
-  showActions = true 
-}: QRDisplayProps) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+const QRDisplay = ({ qrData, eventName, isOpen, onClose }: QRDisplayProps) => {
+  const [qrCodeUrl, setQrCodeUrl] = useState<string>("");
 
   useEffect(() => {
-    if (canvasRef.current) {
-      QRCode.toCanvas(
-        canvasRef.current,
-        data,
-        {
-          width: size,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#FFFFFF',
-          },
-        },
-        (error) => {
-          if (error) console.error('QR Code generation error:', error);
-        }
-      );
+    if (isOpen && qrData) {
+      // Generate QR code using a QR code service
+      const qrCodeServiceUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+        qrData
+      )}`;
+      setQrCodeUrl(qrCodeServiceUrl);
     }
-  }, [data, size]);
+  }, [isOpen, qrData]);
 
-  const downloadQR = () => {
-    if (canvasRef.current) {
-      const link = document.createElement('a');
-      link.download = 'qr-code.png';
-      link.href = canvasRef.current.toDataURL();
+  const handleDownload = () => {
+    if (qrCodeUrl) {
+      const link = document.createElement("a");
+      link.href = qrCodeUrl;
+      link.download = `qr-code-${eventName}.png`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     }
   };
 
-  const shareQR = async () => {
-    if (navigator.share && canvasRef.current) {
-      try {
-        const canvas = canvasRef.current;
-        canvas.toBlob(async (blob) => {
-          if (blob) {
-            const file = new File([blob], 'qr-code.png', { type: 'image/png' });
-            await navigator.share({
-              title: title,
-              text: subtitle || 'Check out this QR code',
-              files: [file],
-            });
-          }
-        });
-      } catch (error) {
-        console.error('Error sharing QR code:', error);
-        // Fallback to download
-        downloadQR();
-      }
-    } else {
-      // Fallback to download if Web Share API is not supported
-      downloadQR();
-    }
-  };
+  if (!isOpen) return null;
 
   return (
-    <Card className="p-6 text-center max-w-sm mx-auto">
-      <h3 className="text-xl font-semibold mb-2">{title}</h3>
-      {subtitle && (
-        <p className="text-white/70 text-sm mb-6">{subtitle}</p>
-      )}
-      
-      <div className="mb-6 flex justify-center">
-        <div className="bg-white p-4 rounded-lg">
-          <canvas 
-            ref={canvasRef}
-            className="block"
-          />
-        </div>
-      </div>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+      <div onClick={(e) => e.stopPropagation()}>
+        <Card className="p-8 max-w-sm mx-4">
+          <div className="text-center">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-semibold">Event QR Code</h3>
+              <button
+                onClick={onClose}
+                className="text-white/60 hover:text-white"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
 
-      <div className="text-xs text-white/60 mb-4">
-        Scan this code with your mobile device
-      </div>
+            <div className="bg-white p-4 rounded-lg mb-4">
+              {qrCodeUrl ? (
+                <img
+                  src={qrCodeUrl}
+                  alt="QR Code"
+                  className="w-48 h-48 mx-auto"
+                />
+              ) : (
+                <div className="w-48 h-48 bg-gray-200 rounded flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                </div>
+              )}
+            </div>
 
-      {showActions && (
-        <div className="flex gap-2 justify-center">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={downloadQR}
-            className="flex-1"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Download
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={shareQR}
-            className="flex-1"
-          >
-            <Share2 className="mr-2 h-4 w-4" />
-            Share
-          </Button>
-          
-          {onClose && (
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={onClose}
-              className="flex-1"
-            >
-              Close
-            </Button>
-          )}
-        </div>
-      )}
-    </Card>
+            <p className="text-white/70 text-sm mb-4">
+              Show this QR code to the event organizer for check-in
+            </p>
+
+            <div className="space-y-2">
+              <Button onClick={handleDownload} className="w-full">
+                <Download className="mr-2 h-4 w-4" />
+                Download QR Code
+              </Button>
+              <Button variant="outline" onClick={onClose} className="w-full">
+                Close
+              </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    </div>
   );
 };
 
-export default QRDisplay; 
+export default QRDisplay;
