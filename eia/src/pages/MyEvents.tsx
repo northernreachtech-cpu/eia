@@ -197,7 +197,7 @@ const MyEvents = () => {
           {/* Tab Navigation */}
           <div className="flex justify-center mb-8 sm:mb-12">
             <div className="flex space-x-1 bg-white/10 rounded-lg p-1">
-              <button
+                        <button
                 onClick={() => setActiveTab("attending")}
                 className={`px-4 py-2 rounded-md transition-colors ${
                   activeTab === "attending"
@@ -206,8 +206,8 @@ const MyEvents = () => {
                 }`}
               >
                 Attending
-              </button>
-              <button
+                        </button>
+                        <button
                 onClick={() => setActiveTab("completed")}
                 className={`px-4 py-2 rounded-md transition-colors ${
                   activeTab === "completed"
@@ -216,7 +216,7 @@ const MyEvents = () => {
                 }`}
               >
                 Completed
-              </button>
+                        </button>
             </div>
           </div>
 
@@ -304,7 +304,7 @@ const MyEvents = () => {
           {events.length === 0 && !loading && (
             <div className="text-center py-12 sm:py-16">
               <div className="mb-6">
-                <Calendar className="h-16 w-16 mx-auto text-white/30" />
+                  <Calendar className="h-16 w-16 mx-auto text-white/30" />
               </div>
               <h3 className="text-xl font-semibold mb-2 text-white/70">
                 No {activeTab} events yet
@@ -316,9 +316,9 @@ const MyEvents = () => {
                   "Complete events to see them here with your NFT rewards"}
               </p>
               <Button onClick={() => navigate("/events")}>
-                <Calendar className="mr-2 h-4 w-4" />
+                  <Calendar className="mr-2 h-4 w-4" />
                 Browse Events
-              </Button>
+                </Button>
             </div>
           )}
 

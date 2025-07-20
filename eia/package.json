@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mysten/bcs": "^1.6.4",
     "@mysten/dapp-kit": "^0.16.15",
     "@mysten/sui": "^1.36.0",
     "@noble/hashes": "^1.8.0",
@@ -25,6 +26,7 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.18.1",
     "html5-qrcode": "^2.3.8",
+    "keccak256": "^1.0.6",
     "lucide-react": "^0.522.0",
     "nft.storage": "^7.2.0",
     "qrcode": "^1.5.4",

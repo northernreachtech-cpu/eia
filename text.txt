@@ -1,1 +1,0 @@
-great, before we move on, we need to fix the issue of the attending count still being zero, despite that there's already a registerd user.

@@ -48,7 +48,7 @@ function AppContent() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
+      <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
         <WalletProvider autoConnect>
           <Router>
@@ -56,7 +56,7 @@ function App() {
           </Router>
         </WalletProvider>
       </SuiClientProvider>
-    </QueryClientProvider>
+      </QueryClientProvider>
   );
 }
 

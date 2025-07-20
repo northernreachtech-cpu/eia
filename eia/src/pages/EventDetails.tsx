@@ -48,6 +48,7 @@ const EventDetails = () => {
   const [event, setEvent] = useState<EventData | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [isOrganizer, setIsOrganizer] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [showQR, setShowQR] = useState(false);
   const [qrData, setQrData] = useState("");
@@ -61,14 +62,19 @@ const EventDetails = () => {
         const eventData = await sdk.eventManagement.getEvent(id);
         setEvent(eventData);
 
-        // Check if user is registered
+        // Check if user is registered and if user is organizer
         if (currentAccount && eventData) {
-          const registration = await sdk.identityAccess.getRegistrationStatus(
-            id,
-            currentAccount.address,
-            registrationRegistryId
-          );
+          const [registration, organizerCheck] = await Promise.all([
+            sdk.identityAccess.getRegistrationStatus(
+              id,
+              currentAccount.address,
+              registrationRegistryId
+            ),
+            sdk.identityAccess.isEventOrganizer(id, currentAccount.address),
+          ]);
+
           setIsRegistered(!!registration);
+          setIsOrganizer(organizerCheck);
         }
       } catch (error) {
         console.error("Error loading event:", error);
@@ -181,7 +187,7 @@ const EventDetails = () => {
           registration
         );
         setQrData(qrDataString);
-        setShowQR(true);
+    setShowQR(true);
       }
     } catch (error) {
       console.error("Error generating QR code:", error);
@@ -307,6 +313,16 @@ const EventDetails = () => {
                     <Users className="mr-2 h-5 w-5" />
                     Connect Wallet to Register
                   </Button>
+                ) : isOrganizer ? (
+                  <Button size="lg" className="w-full" disabled>
+                    <Users className="mr-2 h-5 w-5" />
+                    You're the Organizer
+                  </Button>
+                ) : event.state !== 1 ? (
+                  <Button size="lg" className="w-full" disabled>
+                    <Users className="mr-2 h-5 w-5" />
+                    Event Not Active
+                  </Button>
                 ) : !isRegistered ? (
                   <Button
                     size="lg"
@@ -321,8 +337,8 @@ const EventDetails = () => {
                       </>
                     ) : (
                       <>
-                        <Users className="mr-2 h-5 w-5" />
-                        Join Event
+                    <Users className="mr-2 h-5 w-5" />
+                    Join Event
                       </>
                     )}
                   </Button>
@@ -352,6 +368,16 @@ const EventDetails = () => {
                     {getStatusText(event.state)}
                   </span>
                 </div>
+                {isOrganizer && (
+                  <div className="text-center text-xs text-yellow-400 bg-yellow-400/10 p-2 rounded">
+                    You're the organizer of this event
+                  </div>
+                )}
+                {!isOrganizer && event.state !== 1 && (
+                  <div className="text-center text-xs text-yellow-400 bg-yellow-400/10 p-2 rounded">
+                    Registration opens when event is activated
+                  </div>
+                )}
                 <div className="flex justify-between text-sm">
                   <span className="text-white/60">Created</span>
                   <span className="font-medium">

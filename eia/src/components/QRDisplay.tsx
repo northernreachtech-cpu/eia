@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { X, Download } from "lucide-react";
+import QRCode from "qrcode";
 import Card from "./Card";
 import Button from "./Button";
 
@@ -15,11 +16,36 @@ const QRDisplay = ({ qrData, eventName, isOpen, onClose }: QRDisplayProps) => {
 
   useEffect(() => {
     if (isOpen && qrData) {
-      // Generate QR code using a QR code service
-      const qrCodeServiceUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
-        qrData
-      )}`;
-      setQrCodeUrl(qrCodeServiceUrl);
+      console.log("Generating QR code with data:", qrData);
+      console.log("QR data type:", typeof qrData);
+
+      // qrData is already a JSON string, don't double-encode it
+      const dataToEncode =
+        typeof qrData === "string" ? qrData : JSON.stringify(qrData);
+      console.log("Data to encode in QR:", dataToEncode);
+
+      // Generate QR code locally using qrcode library with simpler options
+      QRCode.toDataURL(dataToEncode, {
+        width: 256,
+        margin: 0,
+        color: {
+          dark: "#000000",
+          light: "#FFFFFF",
+        },
+        errorCorrectionLevel: "L", // Lower error correction for better compatibility
+      })
+        .then((url) => {
+          console.log("QR code generated successfully");
+          setQrCodeUrl(url);
+        })
+        .catch((err) => {
+          console.error("Error generating QR code:", err);
+          // Fallback to external service
+          const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+            dataToEncode
+          )}`;
+          setQrCodeUrl(fallbackUrl);
+        });
     }
   }, [isOpen, qrData]);
 

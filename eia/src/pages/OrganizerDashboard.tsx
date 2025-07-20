@@ -10,6 +10,7 @@ import {
   Plus,
   Loader2,
   Play,
+  QrCode,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -22,6 +23,7 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 import StatCard from "../components/StatCard";
 import RatingStars from "../components/RatingStars";
+import QRScanner from "../components/QRScanner";
 import useScrollToTop from "../hooks/useScrollToTop";
 
 interface Event {
@@ -44,9 +46,13 @@ const OrganizerDashboard = () => {
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
   const sdk = useEIAProtocolSDK();
   const eventRegistryId = useNetworkVariable("eventRegistryId");
+  const attendanceRegistryId = useNetworkVariable("attendanceRegistryId");
+  const registrationRegistryId = useNetworkVariable("registrationRegistryId");
 
   const [loading, setLoading] = useState(true);
   const [activatingEvent, setActivatingEvent] = useState<string | null>(null);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   // const [organizerProfile, setOrganizerProfile] = useState<any>(null);
   const [events, setEvents] = useState<Event[]>([]);
 
@@ -69,56 +75,107 @@ const OrganizerDashboard = () => {
     }
   };
 
-  const loadOrganizerData = async () => {
-    if (!currentAccount) return;
+  const handleCheckIn = (eventId: string) => {
+    console.log("Opening QR scanner for event:", eventId);
+    setSelectedEventId(eventId);
+    setShowQRScanner(true);
+  };
 
+  const handleQRScan = async (qrData: any) => {
     try {
-      setLoading(true);
-      console.log("Loading organizer data for:", currentAccount.address);
-
-      // Check if user has profile
-      const hasProfile = await sdk.eventManagement.hasOrganizerProfile(
-        currentAccount.address
+      // Validate QR code
+      const validation = await sdk.attendanceVerification.validateQRCode(
+        qrData,
+        selectedEventId!
       );
-      if (!hasProfile) {
-        navigate("/create-organizer-profile");
+
+      if (!validation.success) {
+        alert(validation.message);
         return;
       }
 
-      // Get organizer's events
-      const organizerEvents = await sdk.eventManagement.getEventsByOrganizer(
-        currentAccount.address,
-        eventRegistryId
+      // Check-in attendee
+      const tx = sdk.attendanceVerification.checkInAttendee(
+        selectedEventId!,
+        validation.attendeeAddress!,
+        attendanceRegistryId,
+        registrationRegistryId,
+        qrData
       );
-      console.log("Organizer events:", organizerEvents);
 
-      // Transform events to match interface
-      const transformedEvents = organizerEvents.map((event) => ({
-        id: event.id,
-        title: event.name,
-        date: new Date(event.start_time * 1000).toISOString().split("T")[0],
-        status: (
-          event.state === 0
-            ? "upcoming"
-            : event.state === 1
-            ? "active"
-            : "completed"
-        ) as "upcoming" | "active" | "completed",
-        checkedIn: 0, // TODO: Get from registration data
-        totalCapacity: 100, // TODO: Get from event data
-        escrowStatus: "pending" as "pending" | "released" | "locked",
-        rating: 0, // TODO: Get from event data
-        revenue: 0, // TODO: Get from event data
-        state: event.state, // Add state for activation logic
-      }));
+      await signAndExecute({
+        transaction: tx,
+      });
 
-      setEvents(transformedEvents);
+      alert(`Successfully checked in ${validation.attendeeAddress}`);
+
+      // Reload events to update attendee count
+      await loadOrganizerData();
     } catch (error) {
-      console.error("Error loading organizer data:", error);
-    } finally {
-      setLoading(false);
+      console.error("Error checking in attendee:", error);
+      alert("Failed to check in attendee. Please try again.");
     }
   };
+
+    const loadOrganizerData = async () => {
+      if (!currentAccount) return;
+
+      try {
+        setLoading(true);
+        console.log("Loading organizer data for:", currentAccount.address);
+
+        // Check if user has profile
+        const hasProfile = await sdk.eventManagement.hasOrganizerProfile(
+          currentAccount.address
+        );
+        if (!hasProfile) {
+          navigate("/create-organizer-profile");
+          return;
+        }
+
+        // Get organizer's events
+        const organizerEvents = await sdk.eventManagement.getEventsByOrganizer(
+        currentAccount.address,
+        eventRegistryId
+        );
+        console.log("Organizer events:", organizerEvents);
+
+        // Transform events to match interface
+      const transformedEvents = await Promise.all(
+        organizerEvents.map(async (event) => {
+          console.log("Processing event:", event.id, event.name);
+          // Get real attendee count
+          const attendeeCount = await sdk.eventManagement.getEventAttendeeCount(
+            event.id,
+            eventRegistryId
+          );
+
+          return {
+          id: event.id,
+          title: event.name,
+          date: new Date(event.start_time * 1000).toISOString().split("T")[0],
+            status: (event.state === 0
+              ? "upcoming"
+              : event.state === 1
+              ? "active"
+              : "completed") as "upcoming" | "active" | "completed",
+            checkedIn: attendeeCount, // Use real attendee count
+          totalCapacity: 100, // TODO: Get from event data
+            escrowStatus: "pending" as "pending" | "released" | "locked",
+          rating: 0, // TODO: Get from event data
+          revenue: 0, // TODO: Get from event data
+            state: event.state, // Add state for activation logic
+          };
+        })
+      );
+
+        setEvents(transformedEvents);
+      } catch (error) {
+        console.error("Error loading organizer data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
   useEffect(() => {
     loadOrganizerData();
@@ -363,6 +420,18 @@ const OrganizerDashboard = () => {
                           : "Activate"}
                       </Button>
                     )}
+
+                    {event.state === 1 && (
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={() => handleCheckIn(event.id)}
+                      >
+                        <QrCode className="mr-1 h-3 w-3" />
+                        Check-in
+                      </Button>
+                    )}
+
                     <Button
                       variant="outline"
                       size="sm"
@@ -408,6 +477,19 @@ const OrganizerDashboard = () => {
           </div>
         </Card>
       </div>
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && selectedEventId && (
+        <QRScanner
+          isOpen={showQRScanner}
+          onClose={() => {
+            setShowQRScanner(false);
+            setSelectedEventId(null);
+          }}
+          onScan={handleQRScan}
+          eventId={selectedEventId}
+        />
+      )}
     </div>
   );
 };

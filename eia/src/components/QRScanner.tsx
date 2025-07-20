@@ -1,255 +1,196 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
+import { X, CheckCircle, AlertCircle } from "lucide-react";
 import {
-  Camera,
-  X,
-  Flashlight,
-  FlashlightOff,
-  CheckCircle,
-  AlertCircle,
-  RefreshCw,
-} from "lucide-react";
+  Html5QrcodeScanner,
+  Html5QrcodeScanType,
+  Html5QrcodeSupportedFormats,
+} from "html5-qrcode";
 import Button from "./Button";
-import Card from "./Card";
 
 interface QRScannerProps {
-  onScan: (data: string) => void;
-  onClose?: () => void;
-  isOpen?: boolean;
-  title?: string;
+  isOpen: boolean;
+  onClose: () => void;
+  onScan: (data: any) => void;
+  eventId: string;
 }
 
-const QRScanner = ({
-  onScan,
-  onClose,
-  isOpen = false,
-  title = "Scan QR Code",
-}: QRScannerProps) => {
-  const [isScanning, setIsScanning] = useState(false);
-  const [flashEnabled, setFlashEnabled] = useState(false);
-  const [scanResult, setScanResult] = useState<{
-    type: "success" | "error";
-    message: string;
-  } | null>(null);
-  const videoRef = useRef<HTMLVideoElement>(null);
+const QRScanner = ({ isOpen, onClose, onScan, eventId }: QRScannerProps) => {
+  const [_scanning, setScanning] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+  const scannerRef = useRef<Html5QrcodeScanner | null>(null);
+  const scannerContainerRef = useRef<HTMLDivElement>(null);
 
-  const startScanning = useCallback(async () => {
+  useEffect(() => {
+    if (isOpen) {
+      startScanner();
+    } else {
+      stopScanner();
+    }
+  }, [isOpen]);
+
+  const startScanner = () => {
     try {
-      setIsScanning(true);
-      setScanResult(null);
+      setError(null);
+      setScanning(true);
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: "environment",
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+      if (!scannerContainerRef.current) return;
+
+      scannerRef.current = new Html5QrcodeScanner(
+        "qr-scanner-container",
+        {
+          fps: 10,
+          qrbox: { width: 200, height: 200 },
+          aspectRatio: 1.0,
+          showTorchButtonIfSupported: true,
+          supportedScanTypes: [
+            Html5QrcodeScanType.SCAN_TYPE_CAMERA,
+            Html5QrcodeScanType.SCAN_TYPE_FILE,
+          ],
+          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
         },
-      });
+        false
+      );
 
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.play();
-      }
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      setScanResult({
-        type: "error",
-        message: "Unable to access camera. Please check permissions.",
-      });
-      setIsScanning(false);
-    }
-  }, []);
+      scannerRef.current.render(
+        (decodedText) => {
+          try {
+            console.log("QR Code detected:", decodedText);
 
-  const stopScanning = useCallback(() => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-    setIsScanning(false);
-    setFlashEnabled(false);
-  }, []);
-
-  const toggleFlash = useCallback(async () => {
-    if (videoRef.current?.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      const track = stream.getVideoTracks()[0];
-
-      if (track && "applyConstraints" in track) {
-        try {
-          await track.applyConstraints({
-            advanced: [{ torch: !flashEnabled } as any],
-          });
-          setFlashEnabled(!flashEnabled);
-        } catch (error) {
-          console.error("Flash not supported:", error);
+            const qrData = JSON.parse(decodedText);
+            console.log("Parsed QR data:", qrData);
+            handleScanResult(qrData);
+          } catch (err) {
+            console.error("QR parsing error:", err);
+            setError("Invalid QR code format");
+          }
+        },
+        (errorMessage) => {
+          console.log("QR scanning error:", errorMessage);
+          // Don't show NotFoundException errors as they're normal during scanning
+          if (
+            typeof errorMessage === "string" &&
+            !errorMessage.includes("NotFoundException")
+          ) {
+            setError(`Scanning error: ${errorMessage}`);
+          }
         }
-      }
+      );
+    } catch (err) {
+      console.error("Scanner start error:", err);
+      setError("Failed to start QR scanner");
+      setScanning(false);
     }
-  }, [flashEnabled]);
+  };
 
-  // Simulate QR code detection (replace with actual QR library)
-  const simulateQRScan = useCallback(() => {
-    const mockQRData = JSON.stringify({
-      eventId: "event-123",
-      userId: "user-456",
-      timestamp: Date.now(),
-    });
+  const stopScanner = () => {
+    if (scannerRef.current) {
+      scannerRef.current.clear();
+      scannerRef.current = null;
+    }
+    setScanning(false);
+  };
 
-    setScanResult({
-      type: "success",
-      message: "QR Code scanned successfully!",
-    });
+  const handleScanResult = (data: any) => {
+    try {
+      console.log("handleScanResult received data:", data);
 
-    setTimeout(() => {
-      onScan(mockQRData);
-      stopScanning();
-    }, 1500);
-  }, [onScan, stopScanning]);
+      // If data is a string, parse it
+      const parsedData = typeof data === "string" ? JSON.parse(data) : data;
+      console.log("Parsed data for validation:", parsedData);
 
-  const handleClose = () => {
-    stopScanning();
-    onClose?.();
+      console.log("Comparing event IDs:", {
+        qrEventId: parsedData.event_id,
+        currentEventId: eventId,
+        match: parsedData.event_id === eventId,
+      });
+
+      // Validate QR data
+      if (!parsedData.event_id) {
+        setError("QR code missing event_id");
+        return;
+      }
+
+      if (parsedData.event_id !== eventId) {
+        setError(
+          `Invalid QR code for this event. Expected: ${eventId}, Got: ${parsedData.event_id}`
+        );
+        return;
+      }
+
+      setSuccess("QR code scanned successfully!");
+      setTimeout(() => {
+        onScan(parsedData);
+        onClose();
+      }, 1500);
+    } catch (err) {
+      setError("Invalid QR code format");
+    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="w-full max-w-md mx-auto overflow-hidden">
-        {/* Header */}
-        <div className="p-6 pb-4 bg-gradient-to-r from-primary/10 to-secondary/10 border-b border-white/10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-bold text-white">{title}</h3>
-              <p className="text-sm text-white/60 mt-1">
-                Position QR code within the frame
-              </p>
-            </div>
-            <button
-              onClick={handleClose}
-              className="p-2 rounded-lg bg-white/10 hover:bg-white/20 transition-colors"
-            >
-              <X className="h-5 w-5 text-white" />
-            </button>
-          </div>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="bg-gray-900 rounded-lg max-w-lg w-full p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">Scan QR Code</h3>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
         </div>
 
         {/* Scanner Area */}
-        <div className="relative bg-black aspect-square overflow-hidden">
-          {isScanning ? (
-            <>
-              <video
-                ref={videoRef}
-                className="w-full h-full object-cover"
-                playsInline
-                muted
-              />
-
-              {/* Scanning overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="relative">
-                  {/* Scanning frame */}
-                  <div className="w-64 h-64 border-2 border-primary relative">
-                    <div className="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-accent"></div>
-                    <div className="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-accent"></div>
-                    <div className="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-accent"></div>
-                    <div className="absolute bottom-0 right-0 w-8 h-8 border-b-4 border-r-4 border-accent"></div>
-
-                    {/* Scanning line */}
-                    <div className="absolute inset-0 overflow-hidden">
-                      <div className="w-full h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent animate-pulse"></div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Flash button */}
-              <button
-                onClick={toggleFlash}
-                className="absolute top-4 right-4 p-3 rounded-full bg-black/50 backdrop-blur-sm text-white hover:bg-black/70 transition-colors"
-              >
-                {flashEnabled ? (
-                  <FlashlightOff className="h-5 w-5" />
-                ) : (
-                  <Flashlight className="h-5 w-5" />
-                )}
-              </button>
-            </>
-          ) : (
-            <div className="flex items-center justify-center h-full bg-gradient-to-br from-primary/5 to-secondary/5">
-              <div className="text-center">
-                <Camera className="h-16 w-16 text-white/30 mx-auto mb-4" />
-                <p className="text-white/60 mb-6">Camera not active</p>
-                <Button onClick={startScanning} className="mx-auto">
-                  <Camera className="mr-2 h-4 w-4" />
-                  Start Scanning
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Scan result overlay */}
-          {scanResult && (
-            <div className="absolute inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center">
-              <div className="text-center p-6">
-                {scanResult.type === "success" ? (
-                  <CheckCircle className="h-16 w-16 text-green-400 mx-auto mb-4" />
-                ) : (
-                  <AlertCircle className="h-16 w-16 text-red-400 mx-auto mb-4" />
-                )}
-                <p
-                  className={`text-lg font-medium ${
-                    scanResult.type === "success"
-                      ? "text-green-400"
-                      : "text-red-400"
-                  }`}
-                >
-                  {scanResult.message}
-                </p>
-              </div>
-            </div>
-          )}
+        <div className="relative bg-black rounded-lg overflow-hidden mb-4">
+          <div
+            ref={scannerContainerRef}
+            id="qr-scanner-container"
+            className="w-full h-80"
+          />
         </div>
 
-        {/* Controls */}
-        <div className="p-6 bg-gradient-to-r from-white/5 to-white/10 border-t border-white/10">
-          <div className="flex gap-3">
-            {isScanning && (
-              <Button
-                variant="outline"
-                onClick={simulateQRScan}
-                className="flex-1"
-              >
-                Simulate Scan
-              </Button>
-            )}
-
-            <Button
-              variant="outline"
-              onClick={isScanning ? stopScanning : startScanning}
-              className="flex-1"
-            >
-              {isScanning ? (
-                <>
-                  <X className="mr-2 h-4 w-4" />
-                  Stop
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Retry
-                </>
-              )}
-            </Button>
+        {/* Status Messages */}
+        {error && (
+          <div className="flex items-center gap-2 text-red-400 mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <span className="text-sm">{error}</span>
           </div>
+        )}
 
-          <div className="mt-4 text-center">
-            <p className="text-xs text-white/60">
-              Ensure QR code is well-lit and within the frame
-            </p>
+        {success && (
+          <div className="flex items-center gap-2 text-green-400 mb-4">
+            <CheckCircle className="h-4 w-4" />
+            <span className="text-sm">{success}</span>
           </div>
+        )}
+
+        {/* Action Buttons */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              console.log("Testing QR code contents...");
+              // Simulate a test QR code scan with the same structure as real QR codes
+              const testData = {
+                event_id: eventId,
+                user_address: "0x1234567890abcdef",
+                pass_hash: "a1b2c3d4e5f6", // Hex string like real pass hash
+                registered_at: Date.now(),
+                timestamp: Date.now(),
+              };
+              console.log("Test QR data:", testData);
+              console.log("Test QR JSON string:", JSON.stringify(testData));
+              handleScanResult(testData);
+            }}
+          >
+            Test QR Data
+          </Button>
         </div>
-      </Card>
+
+        <p className="text-xs text-white/60 mt-3 text-center">
+          Point camera at attendee's QR code to check them in
+        </p>
+      </div>
     </div>
   );
 };

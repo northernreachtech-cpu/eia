@@ -36,9 +36,17 @@ const Events = () => {
                   currentAccount.address,
                   registrationRegistryId
                 );
+
+              // Check if user is the organizer
+              const isOrganizer = await sdk.identityAccess.isEventOrganizer(
+                event.id,
+                currentAccount.address
+              );
+
               return {
                 ...event,
                 isRegistered: !!registration,
+                isOrganizer,
               };
             })
           );
@@ -180,7 +188,16 @@ const Events = () => {
                 {/* Action Buttons */}
                 <div className="space-y-2">
                   {currentAccount ? (
-                    event.isRegistered ? (
+                    event.isOrganizer ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full"
+                        disabled
+                      >
+                        You're the Organizer
+                      </Button>
+                    ) : event.isRegistered ? (
                       <Button variant="outline" size="sm" className="w-full">
                         ✓ Registered
                       </Button>

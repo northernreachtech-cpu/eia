@@ -570,10 +570,47 @@ export class EventManagementSDK {
     _registrationRegistryId: string
   ): Promise<number> {
     try {
-      // For now, return 0 as placeholder
-      // This would need to be implemented by querying the registration registry
       console.log("Getting attendee count for event:", eventId);
-      return 0;
+
+      // Query registration events for this specific event
+      const { data: transactions } = await suiClient.queryTransactionBlocks({
+        filter: {
+          MoveFunction: {
+            package: this.packageId,
+            module: "identity_access",
+            function: "register_for_event",
+          },
+        },
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+        },
+        limit: 100,
+      });
+
+      let attendeeCount = 0;
+
+      // Count UserRegistered events for this event
+      for (const txn of transactions) {
+        if (txn.events) {
+          for (const event of txn.events) {
+            if (event.type?.includes("UserRegistered")) {
+              const eventData = event.parsedJson as {
+                event_id: string;
+                wallet: string;
+              };
+
+              if (eventData && eventData.event_id === eventId) {
+                attendeeCount++;
+              }
+            }
+          }
+        }
+      }
+
+      console.log("Attendee count for event", eventId, ":", attendeeCount);
+      return attendeeCount;
     } catch (error) {
       console.error("Error getting attendee count:", error);
       return 0;
