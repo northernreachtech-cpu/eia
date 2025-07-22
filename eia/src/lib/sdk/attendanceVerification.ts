@@ -1,6 +1,7 @@
 import { Transaction } from "@mysten/sui/transactions";
 import { suiClient } from "../../config/sui";
 import { keccak_256 } from "@noble/hashes/sha3";
+import { bcs } from "@mysten/sui/bcs";
 
 // System clock object ID is constant
 const CLOCK_ID = "0x6";
@@ -359,17 +360,16 @@ export class AttendanceVerificationSDK {
     _attendeeAddress: string,
     attendanceRegistryId: string,
     registrationRegistryId: string,
-    qrData: any
+    qrData: { pass_hash: Uint8Array }
   ): Transaction {
     const tx = new Transaction();
 
-    // Convert hex string pass hash to bytes
-    const passHashString = qrData.pass_hash || "";
-    const passHashBytes = this.hexToBytes(passHashString);
+    const passHashBytes = Array.from(qrData.pass_hash); // still need to convert to plain array
     const deviceFingerprint = new TextEncoder().encode("device_fingerprint");
     const locationProof = new TextEncoder().encode("location_proof");
 
-    tx.moveCall({
+    // Call check_in and drop the returned MintPoACapability
+    const capability = tx.moveCall({
       target: `${this.packageId}::attendance_verification::check_in`,
       arguments: [
         tx.pure.vector("u8", passHashBytes),
@@ -382,25 +382,74 @@ export class AttendanceVerificationSDK {
       ],
     });
 
+    // Drop the returned capability to avoid UnusedValueWithoutDrop error
+    tx.moveCall({
+      target: `${this.packageId}::attendance_verification::consume_poa_capability`,
+      arguments: [capability],
+    });
+
     return tx;
   }
 
   /**
-   * Convert hex string to byte array
+   * Check-in attendee using pass_id (for new QR format)
    */
-  private hexToBytes(hex: string): number[] {
-    if (hex.length === 0) return [];
+  checkInAttendeeWithPassId(
+    eventId: string,
+    userAddress: string,
+    passId: number,
+    attendanceRegistryId: string,
+    registrationRegistryId: string
+  ): Transaction {
+    const tx = new Transaction();
 
-    // Ensure even length
-    if (hex.length % 2 !== 0) {
-      hex = "0" + hex;
-    }
+    // Generate pass hash from pass_id
+    const passHash = this.generatePassHashFromId(passId, eventId, userAddress);
+    const passHashBytes = Array.from(passHash);
+    const deviceFingerprint = new TextEncoder().encode("device_fingerprint");
+    const locationProof = new TextEncoder().encode("location_proof");
 
-    const bytes = [];
-    for (let i = 0; i < hex.length; i += 2) {
-      bytes.push(parseInt(hex.substr(i, 2), 16));
-    }
-    return bytes;
+    // Call check_in and drop the returned MintPoACapability
+    const capability = tx.moveCall({
+      target: `${this.packageId}::attendance_verification::check_in`,
+      arguments: [
+        tx.pure.vector("u8", passHashBytes),
+        tx.pure.vector("u8", Array.from(deviceFingerprint)),
+        tx.pure.vector("u8", Array.from(locationProof)),
+        tx.object(eventId),
+        tx.object(attendanceRegistryId),
+        tx.object(registrationRegistryId),
+        tx.object(CLOCK_ID),
+      ],
+    });
+
+    // Drop the returned capability to avoid UnusedValueWithoutDrop error
+    tx.moveCall({
+      target: `${this.packageId}::attendance_verification::consume_poa_capability`,
+      arguments: [capability],
+    });
+
+    return tx;
+  }
+
+  /**
+   * Generate pass hash from pass_id (same logic as identity_access module)
+   */
+  private generatePassHashFromId(
+    passId: number,
+    eventId: string,
+    wallet: string
+  ): Uint8Array {
+    const passIdBytes = bcs.U64.serialize(BigInt(passId)).toBytes();
+    const eventIdBytes = bcs.Address.serialize(eventId).toBytes();
+    const walletBytes = bcs.Address.serialize(wallet).toBytes();
+    const combined = new Uint8Array(
+      passIdBytes.length + eventIdBytes.length + walletBytes.length
+    );
+    combined.set(passIdBytes, 0);
+    combined.set(eventIdBytes, passIdBytes.length);
+    combined.set(walletBytes, passIdBytes.length + eventIdBytes.length);
+    return keccak_256(combined);
   }
 
   /**

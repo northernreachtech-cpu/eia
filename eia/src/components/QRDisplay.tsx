@@ -23,27 +23,42 @@ const QRDisplay = ({ qrData, eventName, isOpen, onClose }: QRDisplayProps) => {
       const dataToEncode =
         typeof qrData === "string" ? qrData : JSON.stringify(qrData);
       console.log("Data to encode in QR:", dataToEncode);
+      console.log("QR data size (bytes):", new Blob([dataToEncode]).size);
 
-      // Generate QR code locally using qrcode library with simpler options
+      // Warn if data is too large
+      if (dataToEncode.length > 1000) {
+        console.warn("QR data is large, may affect scanning reliability");
+        console.log("Using external QR service for better compatibility...");
+
+        // Use external service directly for large data
+        const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(
+          dataToEncode
+        )}&ecc=H&margin=4`;
+        setQrCodeUrl(fallbackUrl);
+        return;
+      }
+
+      // Generate QR code locally using qrcode library with better options for scanning
       QRCode.toDataURL(dataToEncode, {
-        width: 256,
-        margin: 0,
+        errorCorrectionLevel: "H", // High error correction for better scanning
+        margin: 4,
         color: {
           dark: "#000000",
           light: "#FFFFFF",
         },
-        errorCorrectionLevel: "L", // Lower error correction for better compatibility
       })
         .then((url) => {
           console.log("QR code generated successfully");
           setQrCodeUrl(url);
         })
         .catch((err) => {
-          console.error("Error generating QR code:", err);
-          // Fallback to external service
-          const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+          console.error("Error generating QR code locally:", err);
+          console.log("Falling back to external QR service...");
+
+          // Fallback to external service for better compatibility
+          const fallbackUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(
             dataToEncode
-          )}`;
+          )}&ecc=H&margin=4`;
           setQrCodeUrl(fallbackUrl);
         });
     }

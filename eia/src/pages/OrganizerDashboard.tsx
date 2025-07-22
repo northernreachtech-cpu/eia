@@ -83,31 +83,56 @@ const OrganizerDashboard = () => {
 
   const handleQRScan = async (qrData: any) => {
     try {
-      // Validate QR code
-      const validation = await sdk.attendanceVerification.validateQRCode(
-        qrData,
-        selectedEventId!
-      );
+      console.log("QR data received:", qrData);
 
-      if (!validation.success) {
-        alert(validation.message);
-        return;
+      // Check if this is the new QR format with pass_id
+      if (qrData.pass_id && qrData.pass_hash === null) {
+        console.log("Using new QR format with pass_id:", qrData.pass_id);
+
+        // Use the new check-in method that generates pass hash from pass_id
+        const tx = sdk.attendanceVerification.checkInAttendeeWithPassId(
+          selectedEventId!,
+          qrData.user_address,
+          qrData.pass_id,
+          attendanceRegistryId,
+          registrationRegistryId
+        );
+
+        await signAndExecute({
+          transaction: tx,
+        });
+
+        alert(`Successfully checked in ${qrData.user_address}`);
+      } else {
+        // Fallback to old method for backward compatibility
+        console.log("Using legacy QR format");
+
+        // Validate QR code
+        const validation = await sdk.attendanceVerification.validateQRCode(
+          qrData,
+          selectedEventId!
+        );
+
+        if (!validation.success) {
+          alert(validation.message);
+          return;
+        }
+
+        // Check-in attendee
+        const tx = sdk.attendanceVerification.checkInAttendee(
+          selectedEventId!,
+          validation.attendeeAddress!,
+          attendanceRegistryId,
+          registrationRegistryId,
+          qrData
+        );
+
+        await signAndExecute({
+          transaction: tx,
+        });
+
+        alert(`Successfully checked in ${validation.attendeeAddress}`);
       }
-
-      // Check-in attendee
-      const tx = sdk.attendanceVerification.checkInAttendee(
-        selectedEventId!,
-        validation.attendeeAddress!,
-        attendanceRegistryId,
-        registrationRegistryId,
-        qrData
-      );
-
-      await signAndExecute({
-        transaction: tx,
-      });
-
-      alert(`Successfully checked in ${validation.attendeeAddress}`);
 
       // Reload events to update attendee count
       await loadOrganizerData();
@@ -117,30 +142,30 @@ const OrganizerDashboard = () => {
     }
   };
 
-    const loadOrganizerData = async () => {
-      if (!currentAccount) return;
+  const loadOrganizerData = async () => {
+    if (!currentAccount) return;
 
-      try {
-        setLoading(true);
-        console.log("Loading organizer data for:", currentAccount.address);
+    try {
+      setLoading(true);
+      console.log("Loading organizer data for:", currentAccount.address);
 
-        // Check if user has profile
-        const hasProfile = await sdk.eventManagement.hasOrganizerProfile(
-          currentAccount.address
-        );
-        if (!hasProfile) {
-          navigate("/create-organizer-profile");
-          return;
-        }
+      // Check if user has profile
+      const hasProfile = await sdk.eventManagement.hasOrganizerProfile(
+        currentAccount.address
+      );
+      if (!hasProfile) {
+        navigate("/create-organizer-profile");
+        return;
+      }
 
-        // Get organizer's events
-        const organizerEvents = await sdk.eventManagement.getEventsByOrganizer(
+      // Get organizer's events
+      const organizerEvents = await sdk.eventManagement.getEventsByOrganizer(
         currentAccount.address,
         eventRegistryId
-        );
-        console.log("Organizer events:", organizerEvents);
+      );
+      console.log("Organizer events:", organizerEvents);
 
-        // Transform events to match interface
+      // Transform events to match interface
       const transformedEvents = await Promise.all(
         organizerEvents.map(async (event) => {
           console.log("Processing event:", event.id, event.name);
@@ -151,31 +176,31 @@ const OrganizerDashboard = () => {
           );
 
           return {
-          id: event.id,
-          title: event.name,
-          date: new Date(event.start_time * 1000).toISOString().split("T")[0],
+            id: event.id,
+            title: event.name,
+            date: new Date(event.start_time * 1000).toISOString().split("T")[0],
             status: (event.state === 0
               ? "upcoming"
               : event.state === 1
               ? "active"
               : "completed") as "upcoming" | "active" | "completed",
             checkedIn: attendeeCount, // Use real attendee count
-          totalCapacity: 100, // TODO: Get from event data
+            totalCapacity: 100, // TODO: Get from event data
             escrowStatus: "pending" as "pending" | "released" | "locked",
-          rating: 0, // TODO: Get from event data
-          revenue: 0, // TODO: Get from event data
+            rating: 0, // TODO: Get from event data
+            revenue: 0, // TODO: Get from event data
             state: event.state, // Add state for activation logic
           };
         })
       );
 
-        setEvents(transformedEvents);
-      } catch (error) {
-        console.error("Error loading organizer data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
+      setEvents(transformedEvents);
+    } catch (error) {
+      console.error("Error loading organizer data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadOrganizerData();

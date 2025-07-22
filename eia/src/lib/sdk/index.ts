@@ -34,11 +34,7 @@ export {
   type OrganizerProfile,
 } from "./eventManagement";
 
-export {
-  IdentityAccessSDK,
-  type Registration,
-  type PassInfo,
-} from "./identityAccess";
+export { IdentityAccessSDK, type Registration } from "./identityAccess";
 
 export {
   AttendanceVerificationSDK,

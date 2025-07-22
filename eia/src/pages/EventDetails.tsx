@@ -138,19 +138,30 @@ const EventDetails = () => {
 
     try {
       setRegistering(true);
-      const tx = sdk.identityAccess.registerForEvent(
+
+      // Use the new registerForEventAndGenerateQR function
+      const result = await sdk.identityAccess.registerForEventAndGenerateQR(
         event.id,
-        registrationRegistryId
+        registrationRegistryId,
+        currentAccount.address,
+        signAndExecute
       );
 
-      // Execute transaction using dApp-kit
-      await signAndExecute({
-        transaction: tx,
-      });
+      if (result) {
+        console.log("User registered successfully!");
+        console.log("QR Data:", result.qrData);
 
-      setIsRegistered(true);
+        // Generate QR code string for display
+        const qrDataString = JSON.stringify(result.qrData);
+        setQrData(qrDataString);
+        setShowQR(true);
+        setIsRegistered(true);
+      } else {
+        console.error("Failed to register for event");
+        alert("Registration failed. Please try again.");
+      }
     } catch (error: any) {
-      console.error("Error registering for event:", error);
+      console.error("Error in registration flow:", error);
 
       // Show user-friendly error message
       let errorMessage = "Registration failed";
@@ -187,7 +198,7 @@ const EventDetails = () => {
           registration
         );
         setQrData(qrDataString);
-    setShowQR(true);
+        setShowQR(true);
       }
     } catch (error) {
       console.error("Error generating QR code:", error);
@@ -337,8 +348,8 @@ const EventDetails = () => {
                       </>
                     ) : (
                       <>
-                    <Users className="mr-2 h-5 w-5" />
-                    Join Event
+                        <Users className="mr-2 h-5 w-5" />
+                        Join Event
                       </>
                     )}
                   </Button>

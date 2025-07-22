@@ -40,23 +40,48 @@ const QRScanner = ({ isOpen, onClose, onScan, eventId }: QRScannerProps) => {
         "qr-scanner-container",
         {
           fps: 10,
-          qrbox: { width: 200, height: 200 },
+          qrbox: { width: 250, height: 250 }, // Larger scan area
           aspectRatio: 1.0,
           showTorchButtonIfSupported: true,
           supportedScanTypes: [
             Html5QrcodeScanType.SCAN_TYPE_CAMERA,
             Html5QrcodeScanType.SCAN_TYPE_FILE,
           ],
-          formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+          formatsToSupport: [
+            Html5QrcodeSupportedFormats.QR_CODE,
+            Html5QrcodeSupportedFormats.AZTEC,
+            Html5QrcodeSupportedFormats.CODABAR,
+            Html5QrcodeSupportedFormats.CODE_39,
+            Html5QrcodeSupportedFormats.CODE_93,
+            Html5QrcodeSupportedFormats.CODE_128,
+            Html5QrcodeSupportedFormats.DATA_MATRIX,
+            Html5QrcodeSupportedFormats.MAXICODE,
+            Html5QrcodeSupportedFormats.ITF,
+            Html5QrcodeSupportedFormats.EAN_13,
+            Html5QrcodeSupportedFormats.EAN_8,
+            Html5QrcodeSupportedFormats.PDF_417,
+            Html5QrcodeSupportedFormats.RSS_14,
+            Html5QrcodeSupportedFormats.RSS_EXPANDED,
+            Html5QrcodeSupportedFormats.UPC_A,
+            Html5QrcodeSupportedFormats.UPC_E,
+            Html5QrcodeSupportedFormats.UPC_EAN_EXTENSION,
+          ],
+          experimentalFeatures: {
+            useBarCodeDetectorIfSupported: true,
+          },
         },
         false
       );
 
       scannerRef.current.render(
         (decodedText) => {
-          try {
-            console.log("QR Code detected:", decodedText);
+          console.log("=== QR CODE SCANNED ===");
+          console.log("Raw decoded text:", decodedText);
+          console.log("Decoded text type:", typeof decodedText);
+          console.log("Decoded text length:", decodedText.length);
+          console.log("First 100 characters:", decodedText.substring(0, 100));
 
+          try {
             const qrData = JSON.parse(decodedText);
             console.log("Parsed QR data:", qrData);
             handleScanResult(qrData);
@@ -67,12 +92,31 @@ const QRScanner = ({ isOpen, onClose, onScan, eventId }: QRScannerProps) => {
         },
         (errorMessage) => {
           console.log("QR scanning error:", errorMessage);
-          // Don't show NotFoundException errors as they're normal during scanning
-          if (
-            typeof errorMessage === "string" &&
-            !errorMessage.includes("NotFoundException")
-          ) {
-            setError(`Scanning error: ${errorMessage}`);
+
+          // Provide more helpful error messages
+          if (typeof errorMessage === "string") {
+            if (errorMessage.includes("NotFoundException")) {
+              // This is normal during scanning, don't show error
+              return;
+            } else if (errorMessage.includes("NotAllowedError")) {
+              setError(
+                "Camera access denied. Please allow camera permissions."
+              );
+            } else if (errorMessage.includes("NotFoundError")) {
+              setError(
+                "No camera found. Please connect a camera and try again."
+              );
+            } else if (errorMessage.includes("NotSupportedError")) {
+              setError(
+                "Camera not supported. Please try a different browser or device."
+              );
+            } else if (errorMessage.includes("NotReadableError")) {
+              setError(
+                "Camera is in use by another application. Please close other camera apps."
+              );
+            } else {
+              setError(`Scanning error: ${errorMessage}`);
+            }
           }
         }
       );
@@ -99,31 +143,63 @@ const QRScanner = ({ isOpen, onClose, onScan, eventId }: QRScannerProps) => {
       const parsedData = typeof data === "string" ? JSON.parse(data) : data;
       console.log("Parsed data for validation:", parsedData);
 
-      console.log("Comparing event IDs:", {
-        qrEventId: parsedData.event_id,
-        currentEventId: eventId,
-        match: parsedData.event_id === eventId,
+      // Log the structure to understand the new format
+      console.log("QR Data structure:", {
+        hasRef: !!parsedData.ref,
+        hasEventId: !!parsedData.e,
+        hasPassId: !!parsedData.p,
+        hasUserAddress: !!parsedData.u,
+        hasTimestamp: !!parsedData.t,
       });
 
-      // Validate QR data
-      if (!parsedData.event_id) {
+      console.log("Comparing event IDs:", {
+        qrEventId: parsedData.e,
+        currentEventId: eventId,
+        match: parsedData.e === eventId,
+      });
+
+      // Validate QR data structure
+      if (!parsedData.e) {
         setError("QR code missing event_id");
         return;
       }
 
-      if (parsedData.event_id !== eventId) {
+      if (!parsedData.p) {
+        setError("QR code missing pass_id");
+        return;
+      }
+
+      if (!parsedData.u) {
+        setError("QR code missing user_address");
+        return;
+      }
+
+      if (parsedData.e !== eventId) {
         setError(
-          `Invalid QR code for this event. Expected: ${eventId}, Got: ${parsedData.event_id}`
+          `Invalid QR code for this event. Expected: ${eventId}, Got: ${parsedData.e}`
         );
         return;
       }
 
+      // Reconstruct the full data structure for check-in
+      const fullData = {
+        event_id: parsedData.e,
+        user_address: parsedData.u,
+        pass_id: parsedData.p,
+        pass_hash: null, // Will be generated from pass_id
+        timestamp: parsedData.t,
+        reference: parsedData.ref,
+      };
+
+      console.log("Reconstructed full data:", fullData);
+
       setSuccess("QR code scanned successfully!");
       setTimeout(() => {
-        onScan(parsedData);
+        onScan(fullData);
         onClose();
       }, 1500);
     } catch (err) {
+      console.error("Error in handleScanResult:", err);
       setError("Invalid QR code format");
     }
   };
@@ -170,11 +246,18 @@ const QRScanner = ({ isOpen, onClose, onScan, eventId }: QRScannerProps) => {
             variant="outline"
             onClick={() => {
               console.log("Testing QR code contents...");
-              // Simulate a test QR code scan with the same structure as real QR codes
+              // Simulate a test QR code scan with the new structure (base64 pass_hash)
+              const testPassHash = new Uint8Array([
+                1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
+              ]);
+              const testPassHashBase64 = btoa(
+                String.fromCharCode(...testPassHash)
+              );
+
               const testData = {
                 event_id: eventId,
                 user_address: "0x1234567890abcdef",
-                pass_hash: "a1b2c3d4e5f6", // Hex string like real pass hash
+                pass_hash: testPassHashBase64, // Base64 encoded Uint8Array
                 registered_at: Date.now(),
                 timestamp: Date.now(),
               };

@@ -355,11 +355,11 @@ export class EventManagementSDK {
                 // Get the full event object
                 const eventResponse = await suiClient.getObject({
                   id: eventData.event_id,
-                  options: {
-                    showContent: true,
-                    showType: true,
-                  },
-                });
+        options: {
+          showContent: true,
+          showType: true,
+        },
+      });
 
                 if (eventResponse.data?.content?.dataType === "moveObject") {
                   const fields = eventResponse.data.content.fields as any;

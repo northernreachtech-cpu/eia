@@ -1,127 +1,276 @@
 import { Transaction } from "@mysten/sui/transactions";
 import { suiClient } from "../../config/sui";
 import { keccak_256 } from "@noble/hashes/sha3";
-// import { bcs } from "@mysten/sui/bcs";
+import { bcs } from "@mysten/sui/bcs";
+import { AttendanceVerificationSDK } from "./attendanceVerification";
 
-// System clock object ID is constant
 const CLOCK_ID = "0x6";
 
 export interface Registration {
   wallet: string;
   registered_at: number;
-  pass_hash: string;
+  pass_hash: string | Uint8Array;
   checked_in: boolean;
-}
-
-export interface PassInfo {
-  wallet: string;
-  event_id: string;
-  created_at: number;
-  expires_at: number;
-  used: boolean;
-  pass_id: number;
 }
 
 export class IdentityAccessSDK {
   private packageId: string;
+  private attendanceSDK: AttendanceVerificationSDK;
 
   constructor(packageId: string) {
     this.packageId = packageId;
-  }
-
-  getPackageId(): string {
-    return this.packageId;
+    this.attendanceSDK = new AttendanceVerificationSDK(packageId);
   }
 
   /**
-   * Register for an event
+   * Register for an event and generate QR code data
+   * Returns the QR data with a short reference ID
+   */
+  async registerForEventAndGenerateQR(
+    eventId: string,
+    registrationRegistryId: string,
+    userAddress: string,
+    signAndExecute: (params: { transaction: Transaction }) => Promise<any>
+  ): Promise<{ qrData: any; passHash: Uint8Array } | null> {
+    try {
+      // 1. Register for the event
+      const registerTx = this.registerForEvent(eventId, registrationRegistryId);
+      console.log("Executing registration transaction...");
+
+      // 2. Execute the registration transaction
+      const result = await signAndExecute({ transaction: registerTx });
+      console.log("Registration result:", result);
+
+      // 3. Extract pass_id from the PassGenerated event
+      let pass_id: number | null = null;
+
+      // Wait a moment for the transaction to be processed
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
+      // Query recent transactions to find the PassGenerated event
+      const { data: transactions } = await suiClient.queryTransactionBlocks({
+        filter: {
+          MoveFunction: {
+            package: this.packageId,
+            module: "identity_access",
+            function: "register_for_event",
+          },
+        },
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+        },
+        limit: 10, // Get recent transactions
+      });
+
+      console.log("Recent registration transactions:", transactions.length);
+
+      // Find the PassGenerated event for this specific user and event
+      for (const txn of transactions) {
+        if (txn.events) {
+          console.log("Transaction events:", txn.events.length);
+          for (const event of txn.events) {
+            console.log("Event type:", event.type);
+            console.log("Event parsedJson:", event.parsedJson);
+
+            if (event.type?.includes("PassGenerated")) {
+              const eventData = event.parsedJson as {
+                event_id: string;
+                wallet: string;
+                pass_id: number;
+                expires_at: number;
+              };
+
+              if (
+                eventData &&
+                eventData.event_id === eventId &&
+                eventData.wallet === userAddress
+              ) {
+                pass_id = eventData.pass_id;
+                console.log("Found PassGenerated event with pass_id:", pass_id);
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      if (!pass_id) {
+        console.error("Could not find PassGenerated event with pass_id");
+        return null;
+      }
+
+      // 4. Generate the pass hash using the real pass_id
+      const passHash = this.generatePassHash(
+        BigInt(pass_id),
+        eventId,
+        userAddress
+      );
+      console.log("Generated pass hash:", passHash);
+
+      // 5. Generate QR code data with short reference ID
+      const qrData = {
+        ref: `${eventId.slice(0, 8)}${pass_id}${userAddress.slice(0, 8)}`, // Short reference
+        e: eventId,
+        p: pass_id,
+        u: userAddress,
+        t: Date.now(),
+      };
+
+      console.log("Generated QR data:", qrData);
+      return { qrData, passHash };
+    } catch (error) {
+      console.error("Error in registration flow:", error);
+      return null;
+    }
+  }
+
+  /**
+   * After registration, call this to generate pass hash and check in
+   * (You must provide the pass_id from the PassGenerated event)
+   */
+  checkInAfterRegistration(
+    eventId: string,
+    registrationRegistryId: string,
+    attendanceRegistryId: string,
+    userAddress: string,
+    pass_id: number
+  ): Transaction {
+    // 2. Generate the pass hash
+    const passHash = this.generatePassHash(
+      BigInt(pass_id),
+      eventId,
+      userAddress
+    );
+    // 3. Prepare qrData
+    const qrData = { pass_hash: passHash };
+    // 4. Create the check-in transaction
+    return this.attendanceSDK.checkInAttendee(
+      eventId,
+      userAddress,
+      attendanceRegistryId,
+      registrationRegistryId,
+      qrData
+    );
+  }
+
+  /**
+   * Create the registration transaction
    */
   registerForEvent(
     eventId: string,
     registrationRegistryId: string
   ): Transaction {
     const tx = new Transaction();
-
     tx.moveCall({
       target: `${this.packageId}::identity_access::register_for_event`,
       arguments: [
-        tx.object(eventId),
-        tx.object(registrationRegistryId),
-        tx.object(CLOCK_ID),
+        tx.object(eventId), // event: &mut Event
+        tx.object(registrationRegistryId), // registry: &mut RegistrationRegistry
+        tx.object(CLOCK_ID), // clock: &Clock
       ],
     });
-
     return tx;
   }
 
   /**
-   * Generate a new pass for an event
+   * Generate pass hash using the same logic as the Move contract
    */
-  generatePass(eventId: string, registrationRegistryId: string): Transaction {
-    const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${this.packageId}::identity_access::generate_new_pass`,
-      arguments: [
-        tx.object(eventId),
-        tx.object(registrationRegistryId),
-        tx.object(CLOCK_ID),
-      ],
-    });
-
-    return tx;
-  }
-
-  /**
-   * Validate a pass
-   */
-  validatePass(
-    passHash: Uint8Array,
+  private generatePassHash(
+    passId: bigint,
     eventId: string,
-    registrationRegistryId: string
-  ): Transaction {
-    const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${this.packageId}::identity_access::validate_pass`,
-      arguments: [
-        tx.pure.vector("u8", passHash),
-        tx.object(eventId),
-        tx.object(registrationRegistryId),
-        tx.object(CLOCK_ID),
-      ],
-    });
-
-    return tx;
+    wallet: string
+  ): Uint8Array {
+    const passIdBytes = bcs.U64.serialize(passId).toBytes();
+    const eventIdBytes = bcs.Address.serialize(eventId).toBytes();
+    const walletBytes = bcs.Address.serialize(wallet).toBytes();
+    const combined = new Uint8Array(
+      passIdBytes.length + eventIdBytes.length + walletBytes.length
+    );
+    combined.set(passIdBytes, 0);
+    combined.set(eventIdBytes, passIdBytes.length);
+    combined.set(walletBytes, passIdBytes.length + eventIdBytes.length);
+    return keccak_256(combined);
   }
 
   /**
-   * Generate QR code data for event registration
+   * Get registration status for a user (for UI components)
    */
-  generateQRCodeData(
+  async getRegistrationStatus(
     eventId: string,
     userAddress: string,
-    registration: Registration
-  ): string {
-    const qrData = {
-      event_id: eventId,
-      user_address: userAddress,
-      pass_hash: registration.pass_hash, // Use actual pass hash from registration
-      registered_at: registration.registered_at,
-      timestamp: Date.now(),
-    };
-
-    return JSON.stringify(qrData);
-  }
-
-  /**
-   * Parse QR code data
-   */
-  parseQRCodeData(qrData: string): any {
+    registrationRegistryId: string
+  ): Promise<Registration | null> {
     try {
-      return JSON.parse(qrData);
+      console.log("Checking registration status:", {
+        eventId,
+        userAddress,
+        registrationRegistryId,
+      });
+
+      // Query for PassGenerated events to check if user is registered
+      const { data: transactions } = await suiClient.queryTransactionBlocks({
+        filter: {
+          MoveFunction: {
+            package: this.packageId,
+            module: "identity_access",
+            function: "register_for_event",
+          },
+        },
+        options: {
+          showEffects: true,
+          showEvents: true,
+          showObjectChanges: true,
+        },
+        limit: 50,
+      });
+
+      // Look for PassGenerated event for this specific user and event
+      for (const txn of transactions) {
+        if (txn.events) {
+          for (const event of txn.events) {
+            if (event.type?.includes("PassGenerated")) {
+              const eventData = event.parsedJson as {
+                event_id: string;
+                wallet: string;
+                pass_id: number;
+                expires_at: number;
+              };
+
+              if (
+                eventData &&
+                eventData.event_id === eventId &&
+                eventData.wallet === userAddress
+              ) {
+                console.log("Found registration for user:", eventData);
+
+                // Generate the pass hash for the registration object
+                const passHash = this.generatePassHash(
+                  BigInt(eventData.pass_id),
+                  eventId,
+                  userAddress
+                );
+                const passHashHex = Array.from(passHash)
+                  .map((b) => b.toString(16).padStart(2, "0"))
+                  .join("");
+
+                return {
+                  wallet: userAddress,
+                  registered_at: eventData.expires_at - 24 * 60 * 60 * 1000, // Approximate registration time
+                  pass_hash: passHashHex,
+                  checked_in: false, // Would need to check attendance separately
+                };
+              }
+            }
+          }
+        }
+      }
+
+      console.log("No registration found for user");
+      return null;
     } catch (error) {
-      console.error("Error parsing QR code data:", error);
+      console.error("Error fetching registration status:", error);
       return null;
     }
   }
@@ -162,433 +311,62 @@ export class IdentityAccessSDK {
   }
 
   /**
-   * Get registration status for a user
+   * Generate QR code data for event registration
    */
-  async getRegistrationStatus(
+  generateQRCodeData(
     eventId: string,
     userAddress: string,
-    registrationRegistryId: string
-  ): Promise<Registration | null> {
-    try {
-      console.log("Checking registration status:", {
-        eventId,
-        userAddress,
-        registrationRegistryId,
-      });
-
-      // Query the registration registry object directly to get the actual pass hash
-      const response = await suiClient.getObject({
-        id: registrationRegistryId,
-        options: {
-          showContent: true,
-          showType: true,
-        },
-      });
-
-      if (
-        !response.data?.content ||
-        response.data.content.dataType !== "moveObject"
-      ) {
-        console.log("Registration registry not found");
-        return null;
-      }
-
-      const fields = response.data.content.fields as any;
-      console.log("Registration registry fields:", fields);
-
-      // Look for the user's registration in the event_registrations table
-      if (fields.event_registrations) {
-        console.log("Event registrations found:", fields.event_registrations);
-        // For now, fall back to event-based approach since table querying is complex
-        return await this.getRegistrationFromEvents(
-          eventId,
-          userAddress,
-          registrationRegistryId
-        );
-      }
-
-      return null;
-    } catch (error) {
-      console.error("Error fetching registration status:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get registration from events (fallback method)
-   */
-  private async getRegistrationFromEvents(
-    eventId: string,
-    userAddress: string,
-    registrationRegistryId: string
-  ): Promise<Registration | null> {
-    try {
-      // Query for both UserRegistered and PassGenerated events
-      const { data: transactions } = await suiClient.queryTransactionBlocks({
-        filter: {
-          MoveFunction: {
-            package: this.packageId,
-            module: "identity_access",
-            function: "register_for_event",
-          },
-        },
-        options: {
-          showEffects: true,
-          showEvents: true,
-          showObjectChanges: true,
-        },
-        limit: 50,
-      });
-
-      console.log("Found registration transactions:", transactions.length);
-
-      // Look for UserRegistered event for this specific user and event
-      for (const txn of transactions) {
-        if (txn.events) {
-          let registrationData: any = null;
-          let passData: any = null;
-
-          // Find both UserRegistered and PassGenerated events in the same transaction
-          for (const event of txn.events) {
-            if (event.type?.includes("UserRegistered")) {
-              const eventData = event.parsedJson as {
-                event_id: string;
-                wallet: string;
-                registered_at: number;
-              };
-
-              if (
-                eventData &&
-                eventData.event_id === eventId &&
-                eventData.wallet === userAddress
-              ) {
-                registrationData = eventData;
-              }
-            }
-
-            if (event.type?.includes("PassGenerated")) {
-              const eventData = event.parsedJson as {
-                event_id: string;
-                wallet: string;
-                pass_id: number;
-                expires_at: number;
-              };
-
-              if (
-                eventData &&
-                eventData.event_id === eventId &&
-                eventData.wallet === userAddress
-              ) {
-                passData = eventData;
-              }
-            }
-          }
-
-          // If we found both events, we have a complete registration
-          if (registrationData && passData) {
-            console.log("Found complete registration for user!");
-
-            // Get the actual pass hash from the blockchain registration
-            // We need to query the registration object directly to get the real pass_hash
-            const passHash = await this.getActualPassHashFromBlockchain(
-              eventId,
-              userAddress,
-              registrationRegistryId
-            );
-
-            return {
-              wallet: registrationData.wallet,
-              registered_at: registrationData.registered_at,
-              pass_hash: passHash,
-              checked_in: false,
-            };
-          }
-        }
-      }
-
-      console.log("No registration found for user");
-      return null;
-    } catch (error) {
-      console.error("Error fetching registration from events:", error);
-      return null;
-    }
-  }
-
-  /**
-   * Get registration from registry table (get actual blockchain pass hash)
-   */
-  // private async getRegistrationFromRegistry(
-  //   eventRegistrations: any,
-  //   eventId: string,
-  //   userAddress: string
-  // ): Promise<Registration | null> {
-  //   try {
-  //     // Query the event registrations table to get the actual registration
-  //     const eventRegsResponse = await suiClient.getObject({
-  //       id: eventRegistrations,
-  //       options: {
-  //         showContent: true,
-  //         showType: true,
-  //       },
-  //     });
-
-  //     if (
-  //       !eventRegsResponse.data?.content ||
-  //       eventRegsResponse.data.content.dataType !== "moveObject"
-  //     ) {
-  //       console.log("Event registrations not found");
-  //       return null;
-  //     }
-
-  //     const eventRegsFields = eventRegsResponse.data.content.fields as any;
-  //     console.log("Event registrations fields:", eventRegsFields);
-
-  //     // Look for the user's registration in the registrations table
-  //     if (eventRegsFields.registrations) {
-  //       // Query the user's registration to get the actual pass hash
-  //       const registrationResponse = await suiClient.getObject({
-  //         id: eventRegsFields.registrations,
-  //         options: {
-  //           showContent: true,
-  //           showType: true,
-  //         },
-  //       });
-
-  //       if (registrationResponse.data?.content?.dataType === "moveObject") {
-  //         const registrationFields = registrationResponse.data.content
-  //           .fields as any;
-  //         console.log("Registration fields:", registrationFields);
-
-  //         // Extract the actual pass hash from the blockchain
-  //         const passHash = registrationFields.pass_hash;
-  //         console.log("Actual blockchain pass hash:", passHash);
-
-  //         return {
-  //           wallet: registrationFields.wallet,
-  //           registered_at: parseInt(registrationFields.registered_at),
-  //           pass_hash: passHash,
-  //           checked_in: registrationFields.checked_in,
-  //         };
-  //       }
-  //     }
-
-  //     return null;
-  //   } catch (error) {
-  //     console.error("Error getting registration from registry:", error);
-  //     return null;
-  //   }
-  // }
-
-  /**
-   * Get the actual pass hash from the blockchain registration
-   */
-  private async getActualPassHashFromBlockchain(
-    eventId: string,
-    userAddress: string,
-    _registrationRegistryId?: string
-  ): Promise<string> {
-    try {
-      // For now, let's use a simpler approach that works
-      // Query the registration events to get the pass_id, then generate the hash
-      const { data: transactions } = await suiClient.queryTransactionBlocks({
-        filter: {
-          MoveFunction: {
-            package: this.packageId,
-            module: "identity_access",
-            function: "register_for_event",
-          },
-        },
-        options: {
-          showEffects: true,
-          showEvents: true,
-          showObjectChanges: true,
-        },
-        limit: 50,
-      });
-
-      // Find the PassGenerated event for this user and event
-      for (const txn of transactions) {
-        if (txn.events) {
-          for (const event of txn.events) {
-            if (event.type?.includes("PassGenerated")) {
-              const eventData = event.parsedJson as {
-                event_id: string;
-                wallet: string;
-                pass_id: number;
-                expires_at: number;
-              };
-
-              if (
-                eventData &&
-                eventData.event_id === eventId &&
-                eventData.wallet === userAddress
-              ) {
-                console.log("Found PassGenerated event:", eventData);
-
-                // Generate the pass hash using the same logic as the Move contract
-                // This should match the actual blockchain pass hash
-                const passHash = this.generateMoveCompatiblePassHash(
-                  eventData.pass_id,
-                  eventId,
-                  userAddress
-                );
-
-                console.log("Generated pass hash:", passHash);
-                return passHash;
-              }
-            }
-          }
-        }
-      }
-
-      console.log("Could not find PassGenerated event");
-      return "no_pass_event_found";
-    } catch (error) {
-      console.error("Error getting blockchain pass hash:", error);
-      return "error_hash";
-    }
-  }
-
-  /**
-   * Generate pass hash using the exact same logic as the Move contract
-   */
-  private generateMoveCompatiblePassHash(
-    passId: number,
-    eventId: string,
-    wallet: string
+    registration: Registration
   ): string {
-    console.log("=== MOVE CONTRACT HASH GENERATION ===");
-    console.log("Input parameters:", { passId, eventId, wallet });
-
-    // This is the EXACT same logic as the Move contract:
-    // fun generate_pass_hash(pass_id: u64, event_id: ID, wallet: address): vector<u8> {
-    //     let mut data = vector::empty<u8>();
-    //     vector::append(&mut data, bcs::to_bytes(&pass_id));
-    //     vector::append(&mut data, bcs::to_bytes(&event_id));
-    //     vector::append(&mut data, bcs::to_bytes(&wallet));
-    //     hash::keccak256(&data)
-    // }
-
-    // Step 1: Create empty data vector (like Move's vector::empty<u8>())
-    let data = new Uint8Array(0);
-    console.log("Step 1 - Empty data vector:", Array.from(data));
-
-    // Step 2: Append BCS-serialized pass_id (u64)
-    console.log("Step 2 - BCS serializing pass_id (u64):", passId);
-    const passIdBytes = this.serializeU64(passId);
-    console.log("   pass_id BCS bytes:", Array.from(passIdBytes));
-    data = this.appendBytes(data, passIdBytes);
-    console.log("   data after pass_id:", Array.from(data));
-
-    // Step 3: Append BCS-serialized event_id (ID)
-    console.log("Step 3 - BCS serializing event_id (ID):", eventId);
-    const eventIdBytes = this.serializeString(eventId);
-    console.log("   event_id BCS bytes:", Array.from(eventIdBytes));
-    data = this.appendBytes(data, eventIdBytes);
-    console.log("   data after event_id:", Array.from(data));
-
-    // Step 4: Append BCS-serialized wallet (address)
-    console.log("Step 4 - BCS serializing wallet (address):", wallet);
-    const walletBytes = this.serializeAddress(wallet);
-    console.log("   wallet BCS bytes:", Array.from(walletBytes));
-    data = this.appendBytes(data, walletBytes);
-    console.log("   data after wallet:", Array.from(data));
-
-    // Step 5: Final data array (like Move's data before hash::keccak256(&data))
-    console.log(
-      "Step 5 - Final data array (before keccak256):",
-      Array.from(data)
-    );
-    console.log("   Total bytes:", data.length);
-
-    // Step 6: Use keccak256 hash (same as Move's hash::keccak256(&data))
-    console.log("Step 6 - Applying keccak256 hash...");
-    const hash = keccak_256(data);
-    const hashString = Array.from(hash)
-      .map((b: number) => b.toString(16).padStart(2, "0"))
-      .join("");
-
-    console.log("Step 7 - Final hash result:", hashString);
-    console.log("=== END HASH GENERATION ===");
-    return hashString;
-  }
-
-  /**
-   * Append bytes to existing array (like Move's vector::append)
-   */
-  private appendBytes(existing: Uint8Array, newBytes: any): Uint8Array {
-    const existingArray = Array.from(existing);
-    // Convert BCS serialized data to Uint8Array
-    const newArray = new Uint8Array(newBytes);
-    return new Uint8Array([...existingArray, ...newArray]);
-  }
-
-  /**
-   * Serialize u64 like Move's bcs::to_bytes(&u64)
-   */
-  private serializeU64(value: number): Uint8Array {
-    const buffer = new ArrayBuffer(8);
-    const view = new DataView(buffer);
-    view.setBigUint64(0, BigInt(value), false); // little-endian
-    return new Uint8Array(buffer);
-  }
-
-  /**
-   * Serialize string like Move's bcs::to_bytes(&String)
-   */
-  private serializeString(str: string): Uint8Array {
-    const encoder = new TextEncoder();
-    const strBytes = encoder.encode(str);
-    const lengthBytes = this.serializeU64(strBytes.length);
-    const result = new Uint8Array(lengthBytes.length + strBytes.length);
-    result.set(lengthBytes, 0);
-    result.set(strBytes, lengthBytes.length);
-    return result;
-  }
-
-  /**
-   * Serialize address like Move's bcs::to_bytes(&address)
-   */
-  private serializeAddress(address: string): Uint8Array {
-    // Remove 0x prefix and convert to bytes
-    const cleanAddress = address.startsWith('0x') ? address.slice(2) : address;
-    const bytes = new Uint8Array(cleanAddress.length / 2);
-    for (let i = 0; i < cleanAddress.length; i += 2) {
-      bytes[i / 2] = parseInt(cleanAddress.substr(i, 2), 16);
+    // Convert pass_hash to base64 for QR storage
+    let passHashBase64: string;
+    if (typeof registration.pass_hash === "string") {
+      // If it's already a hex string, convert to Uint8Array first
+      const hex = registration.pass_hash;
+      const bytes = new Uint8Array(hex.length / 2);
+      for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substr(i, 2), 16);
+      }
+      passHashBase64 = btoa(String.fromCharCode(...bytes));
+    } else {
+      // If it's already Uint8Array
+      passHashBase64 = btoa(
+        String.fromCharCode(...(registration.pass_hash as Uint8Array))
+      );
     }
-    return bytes;
+
+    const qrData = {
+      event_id: eventId,
+      user_address: userAddress,
+      pass_hash: passHashBase64, // Base64 encoded Uint8Array
+      registered_at: registration.registered_at,
+      timestamp: Date.now(),
+    };
+
+    return JSON.stringify(qrData);
   }
 
   /**
-   * Get all registrations for an event
+   * Parse QR code data
    */
-  async getEventRegistrations(
-    _eventId: string,
-    registrationRegistryId: string
-  ): Promise<Registration[]> {
+  parseQRCodeData(qrData: string): any {
     try {
-      // Query the registration registry for event registrations
-      const response = await suiClient.getObject({
-        id: registrationRegistryId,
-        options: {
-          showContent: true,
-          showType: true,
-        },
-      });
+      const parsed = JSON.parse(qrData);
 
-      if (
-        !response.data?.content ||
-        response.data.content.dataType !== "moveObject"
-      ) {
-        return [];
+      // Convert base64 pass_hash back to Uint8Array
+      if (parsed.pass_hash) {
+        const passHashBytes = atob(parsed.pass_hash);
+        const passHashArray = new Uint8Array(passHashBytes.length);
+        for (let i = 0; i < passHashBytes.length; i++) {
+          passHashArray[i] = passHashBytes.charCodeAt(i);
+        }
+        parsed.pass_hash = passHashArray;
       }
 
-      // This would need to be implemented based on the actual registry structure
-      // For now, return empty array as placeholder
-      return [];
+      return parsed;
     } catch (error) {
-      console.error("Error fetching event registrations:", error);
-      return [];
+      console.error("Error parsing QR code data:", error);
+      return null;
     }
   }
 }
