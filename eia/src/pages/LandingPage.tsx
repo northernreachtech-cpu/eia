@@ -83,7 +83,7 @@ const LandingPage = () => {
               transition={{ duration: 0.8 }}
               className="text-center"
             >
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl xl:text-8xl font-satoshi font-bold mb-4 sm:mb-6 leading-tight">
+              <h1 className="text-4xl sm:text-5xl lg:text-7xl xl:text-8xl font-livvic font-bold mb-4 sm:mb-6 leading-tight">
                 <span className="bg-gradient-to-r from-primary via-secondary to-accent text-transparent bg-clip-text">
                   Decentralized
                 </span>
@@ -129,7 +129,7 @@ const LandingPage = () => {
               viewport={{ once: true }}
               className="text-center mb-12 sm:mb-16"
             >
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-satoshi font-bold mb-3 sm:mb-4">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-livvic font-bold mb-3 sm:mb-4">
                 Powerful Features
               </h2>
               <p className="text-white/80 text-base sm:text-lg lg:text-xl max-w-3xl mx-auto px-4 leading-relaxed">
@@ -180,7 +180,7 @@ const LandingPage = () => {
               viewport={{ once: true }}
               className="text-center mb-12 sm:mb-16"
             >
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-satoshi font-bold mb-3 sm:mb-4">
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-livvic font-bold mb-3 sm:mb-4">
                 How It Works
               </h2>
               <p className="text-white/80 text-base sm:text-lg lg:text-xl max-w-3xl mx-auto px-4 leading-relaxed">
@@ -230,7 +230,7 @@ const LandingPage = () => {
               viewport={{ once: true }}
             >
               <Card className="p-8 sm:p-12 lg:p-16">
-                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-satoshi font-bold mb-4 sm:mb-6">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-livvic font-bold mb-4 sm:mb-6">
                   Ready to Get Started?
                 </h2>
                 <p className="text-white/80 text-base sm:text-lg lg:text-xl mb-6 sm:mb-8 max-w-2xl mx-auto leading-relaxed">
@@ -264,8 +264,8 @@ const LandingPage = () => {
           <div className="max-w-6xl mx-auto">
             <div className="flex flex-col md:flex-row justify-between items-center gap-6 md:gap-0">
               <div className="text-center md:text-left">
-                <h3 className="text-xl sm:text-2xl font-satoshi font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text">
-                  EIA Protocol
+                <h3 className="text-xl sm:text-2xl font-livvic font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text">
+                  Ariya
                 </h3>
                 <p className="text-white/60 text-sm sm:text-base mt-1">
                   Decentralized Event Management

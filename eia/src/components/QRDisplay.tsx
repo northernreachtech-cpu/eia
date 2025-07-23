@@ -42,10 +42,10 @@ const QRDisplay = ({ qrData, eventName, isOpen, onClose }: QRDisplayProps) => {
       QRCode.toDataURL(dataToEncode, {
         errorCorrectionLevel: "H", // High error correction for better scanning
         margin: 4,
-        color: {
+          color: {
           dark: "#000000",
           light: "#FFFFFF",
-        },
+          },
       })
         .then((url) => {
           console.log("QR code generated successfully");
@@ -72,7 +72,7 @@ const QRDisplay = ({ qrData, eventName, isOpen, onClose }: QRDisplayProps) => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-    }
+          }
   };
 
   if (!isOpen) return null;
@@ -102,9 +102,9 @@ const QRDisplay = ({ qrData, eventName, isOpen, onClose }: QRDisplayProps) => {
               ) : (
                 <div className="w-48 h-48 bg-gray-200 rounded flex items-center justify-center">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                </div>
+        </div>
               )}
-            </div>
+      </div>
 
             <p className="text-white/70 text-sm mb-4">
               Show this QR code to the event organizer for check-in
@@ -112,18 +112,18 @@ const QRDisplay = ({ qrData, eventName, isOpen, onClose }: QRDisplayProps) => {
 
             <div className="space-y-2">
               <Button onClick={handleDownload} className="w-full">
-                <Download className="mr-2 h-4 w-4" />
+            <Download className="mr-2 h-4 w-4" />
                 Download QR Code
-              </Button>
+          </Button>
               <Button variant="outline" onClick={onClose} className="w-full">
-                Close
-              </Button>
+              Close
+            </Button>
             </div>
-          </div>
-        </Card>
+        </div>
+    </Card>
       </div>
     </div>
   );
 };
 
-export default QRDisplay;
+export default QRDisplay; 

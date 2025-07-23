@@ -5,7 +5,7 @@ import { AttendanceVerificationSDK } from "./attendanceVerification";
 import { useNetworkVariable } from "../../config/sui";
 
 // Main SDK class that combines all modules
-export class EIAProtocolSDK {
+export class AriyaSDK {
   public eventManagement: EventManagementSDK;
   public identityAccess: IdentityAccessSDK;
   public attendanceVerification: AttendanceVerificationSDK;
@@ -18,11 +18,11 @@ export class EIAProtocolSDK {
 }
 
 // React hook to use the SDK
-export function useEIAProtocolSDK(): EIAProtocolSDK {
+export function useAriyaSDK(): AriyaSDK {
   const packageId = useNetworkVariable("packageId");
 
   return useMemo(() => {
-    return new EIAProtocolSDK(packageId);
+    return new AriyaSDK(packageId);
   }, [packageId]);
 }
 

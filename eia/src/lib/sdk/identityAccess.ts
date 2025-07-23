@@ -35,11 +35,9 @@ export class IdentityAccessSDK {
     try {
       // 1. Register for the event
       const registerTx = this.registerForEvent(eventId, registrationRegistryId);
-      console.log("Executing registration transaction...");
 
       // 2. Execute the registration transaction
-      const result = await signAndExecute({ transaction: registerTx });
-      console.log("Registration result:", result);
+      await signAndExecute({ transaction: registerTx });
 
       // 3. Extract pass_id from the PassGenerated event
       let pass_id: number | null = null;
@@ -64,16 +62,10 @@ export class IdentityAccessSDK {
         limit: 10, // Get recent transactions
       });
 
-      console.log("Recent registration transactions:", transactions.length);
-
       // Find the PassGenerated event for this specific user and event
       for (const txn of transactions) {
         if (txn.events) {
-          console.log("Transaction events:", txn.events.length);
           for (const event of txn.events) {
-            console.log("Event type:", event.type);
-            console.log("Event parsedJson:", event.parsedJson);
-
             if (event.type?.includes("PassGenerated")) {
               const eventData = event.parsedJson as {
                 event_id: string;
@@ -88,7 +80,6 @@ export class IdentityAccessSDK {
                 eventData.wallet === userAddress
               ) {
                 pass_id = eventData.pass_id;
-                console.log("Found PassGenerated event with pass_id:", pass_id);
                 break;
               }
             }
@@ -97,7 +88,6 @@ export class IdentityAccessSDK {
       }
 
       if (!pass_id) {
-        console.error("Could not find PassGenerated event with pass_id");
         return null;
       }
 
@@ -107,7 +97,6 @@ export class IdentityAccessSDK {
         eventId,
         userAddress
       );
-      console.log("Generated pass hash:", passHash);
 
       // 5. Generate QR code data with short reference ID
       const qrData = {
@@ -118,10 +107,8 @@ export class IdentityAccessSDK {
         t: Date.now(),
       };
 
-      console.log("Generated QR data:", qrData);
       return { qrData, passHash };
     } catch (error) {
-      console.error("Error in registration flow:", error);
       return null;
     }
   }
@@ -200,15 +187,9 @@ export class IdentityAccessSDK {
   async getRegistrationStatus(
     eventId: string,
     userAddress: string,
-    registrationRegistryId: string
+    _registrationRegistryId: string
   ): Promise<Registration | null> {
     try {
-      console.log("Checking registration status:", {
-        eventId,
-        userAddress,
-        registrationRegistryId,
-      });
-
       // Query for PassGenerated events to check if user is registered
       const { data: transactions } = await suiClient.queryTransactionBlocks({
         filter: {
@@ -243,8 +224,6 @@ export class IdentityAccessSDK {
                 eventData.event_id === eventId &&
                 eventData.wallet === userAddress
               ) {
-                console.log("Found registration for user:", eventData);
-
                 // Generate the pass hash for the registration object
                 const passHash = this.generatePassHash(
                   BigInt(eventData.pass_id),
@@ -267,10 +246,8 @@ export class IdentityAccessSDK {
         }
       }
 
-      console.log("No registration found for user");
       return null;
     } catch (error) {
-      console.error("Error fetching registration status:", error);
       return null;
     }
   }
@@ -302,10 +279,8 @@ export class IdentityAccessSDK {
       const fields = eventResponse.data.content.fields as any;
       const organizer = fields.organizer;
 
-      console.log("Event organizer:", organizer, "User:", userAddress);
       return organizer === userAddress;
     } catch (error) {
-      console.error("Error checking if user is organizer:", error);
       return false;
     }
   }
@@ -365,7 +340,6 @@ export class IdentityAccessSDK {
 
       return parsed;
     } catch (error) {
-      console.error("Error parsing QR code data:", error);
       return null;
     }
   }

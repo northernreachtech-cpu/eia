@@ -287,7 +287,6 @@ export class EventManagementSDK {
       }
 
       const fields = response.data.content.fields as any;
-      // console.log("fields:::", fields);
       return {
         id: fields.id.id,
         address: fields.address,
@@ -313,8 +312,6 @@ export class EventManagementSDK {
     _eventRegistryId: string
   ): Promise<EventInfo[]> {
     try {
-      console.log("Fetching events for organizer:", organizerAddress);
-
       // Since events are shared objects, we need to query them differently
       // For now, let's use a simple approach: query recent transactions and extract events
       const { data: transactions } = await suiClient.queryTransactionBlocks({
@@ -333,25 +330,21 @@ export class EventManagementSDK {
         limit: 50,
       });
 
-      console.log("Found transactions:", transactions.length);
       const eventInfos: EventInfo[] = [];
 
       for (const txn of transactions) {
         if (txn.events) {
           for (const event of txn.events) {
-            console.log("Event type:", event.type);
             if (event.type?.includes("EventCreated")) {
               const eventData = event.parsedJson as {
                 event_id: string;
                 organizer: string;
               };
-              console.log("Event data:", eventData);
               if (
                 eventData &&
                 eventData.event_id &&
                 eventData.organizer === organizerAddress
               ) {
-                console.log("Found event for organizer:", eventData.event_id);
                 // Get the full event object
                 const eventResponse = await suiClient.getObject({
                   id: eventData.event_id,
@@ -377,7 +370,6 @@ export class EventManagementSDK {
         }
       }
 
-      console.log("Returning events:", eventInfos.length);
       return eventInfos;
     } catch (error) {
       console.error("Error fetching events by organizer:", error);
@@ -519,7 +511,6 @@ export class EventManagementSDK {
 
   async hasOrganizerProfile(address: string): Promise<boolean> {
     try {
-      console.log("Checking profile for address:", address);
       const { data: objects } = await suiClient.getOwnedObjects({
         owner: address,
         filter: {
@@ -528,26 +519,20 @@ export class EventManagementSDK {
         options: { showContent: true },
       });
 
-      console.log("Found OrganizerCap objects:", objects);
-
       if (objects.length === 0) return false;
 
       for (const obj of objects) {
         const fields = extractMoveObjectFields(obj);
-        console.log("OrganizerCap fields:", fields);
 
         if (fields) {
           const profileId = fields.profile_id;
-          console.log("Profile ID:", profileId);
 
           const profileResponse = await suiClient.getObject({
             id: profileId,
             options: { showContent: true },
           });
 
-          console.log("Profile response:", profileResponse);
           const profileFields = extractMoveObjectFields(profileResponse);
-          console.log("Profile fields:", profileFields);
 
           if (profileFields && profileFields.address === address) {
             return true;
@@ -570,8 +555,6 @@ export class EventManagementSDK {
     _registrationRegistryId: string
   ): Promise<number> {
     try {
-      console.log("Getting attendee count for event:", eventId);
-
       // Query registration events for this specific event
       const { data: transactions } = await suiClient.queryTransactionBlocks({
         filter: {
@@ -609,7 +592,6 @@ export class EventManagementSDK {
         }
       }
 
-      console.log("Attendee count for event", eventId, ":", attendeeCount);
       return attendeeCount;
     } catch (error) {
       console.error("Error getting attendee count:", error);

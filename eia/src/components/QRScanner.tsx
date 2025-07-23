@@ -223,27 +223,27 @@ const QRScanner = ({ isOpen, onClose, onScan, eventId }: QRScannerProps) => {
             id="qr-scanner-container"
             className="w-full h-80"
           />
-        </div>
+              </div>
 
         {/* Status Messages */}
         {error && (
           <div className="flex items-center gap-2 text-red-400 mb-4">
             <AlertCircle className="h-4 w-4" />
             <span className="text-sm">{error}</span>
-          </div>
-        )}
+            </div>
+          )}
 
         {success && (
           <div className="flex items-center gap-2 text-green-400 mb-4">
             <CheckCircle className="h-4 w-4" />
             <span className="text-sm">{success}</span>
-          </div>
-        )}
+            </div>
+          )}
 
         {/* Action Buttons */}
         <div className="flex gap-2">
-          <Button
-            variant="outline"
+              <Button
+                variant="outline"
             onClick={() => {
               console.log("Testing QR code contents...");
               // Simulate a test QR code scan with the new structure (base64 pass_hash)
@@ -267,13 +267,13 @@ const QRScanner = ({ isOpen, onClose, onScan, eventId }: QRScannerProps) => {
             }}
           >
             Test QR Data
-          </Button>
-        </div>
+            </Button>
+          </div>
 
         <p className="text-xs text-white/60 mt-3 text-center">
           Point camera at attendee's QR code to check them in
-        </p>
-      </div>
+            </p>
+          </div>
     </div>
   );
 };

@@ -1,11 +1,5 @@
 import { useState } from "react";
-import {
-  Target,
-  Users,
-  Star,
-  Calendar,
-  DollarSign,
-} from "lucide-react";
+import { Target, Users, Star, Calendar, DollarSign } from "lucide-react";
 import Card from "../components/Card";
 import StatCard from "../components/StatCard";
 import RatingStars from "../components/RatingStars";
@@ -104,7 +98,7 @@ const SponsorDashboard = () => {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-8 sm:pb-12">
         {/* Header with improved responsive design */}
         <div className="mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text mb-2">
+          <h1 className="text-3xl sm:text-4xl font-livvic font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text mb-2">
             Sponsor Dashboard
           </h1>
           <p className="text-white/60 text-sm sm:text-base">

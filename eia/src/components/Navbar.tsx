@@ -13,8 +13,8 @@ const Navbar = () => {
     { name: "My Events", href: "/my-events" },
     { name: "Create Event", href: "/event/create" },
     { name: "Organizers", href: "/organizers" },
-    { name: "Create Profile", href: "/profile/organizer/create" },
-    { name: "Community", href: "/community" },
+    { name: "Profile", href: "/profile/organizer/create" },
+    // { name: "Community", href: "/community" },
   ];
 
   const isActiveLink = (href: string) => {
@@ -29,14 +29,14 @@ const Navbar = () => {
           <div className="flex items-center">
             <Link
               to="/"
-              className="text-2xl font-satoshi font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text"
+              className="text-2xl font-livvic font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text"
             >
-              EIA Protocol
+              Ariya
             </Link>
           </div>
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-8">
+          <div className="hidden md:flex items-center space-x-8 font-open-sans">
             {navLinks.map((link) => (
               <Link
                 key={link.name}
@@ -53,7 +53,7 @@ const Navbar = () => {
             ))}
           </div>
 
-          {/* Connect Wallet Button */}
+          {/* Connect Wallet Button (desktop only) */}
           <div className="hidden md:flex">
             <ConnectWalletButton />
           </div>
@@ -72,7 +72,7 @@ const Navbar = () => {
         {/* Mobile Navigation */}
         <div
           className={cn(
-            "md:hidden transition-all duration-300 overflow-hidden",
+            "md:hidden transition-all duration-300 overflow-hidden font-open-sans relative z-50",
             isMenuOpen ? "max-h-96 pb-4" : "max-h-0"
           )}
         >

@@ -13,7 +13,7 @@ import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
 } from "@mysten/dapp-kit";
-import { useEIAProtocolSDK } from "../lib/sdk";
+import { useAriyaSDK } from "../lib/sdk";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import useScrollToTop from "../hooks/useScrollToTop";
@@ -26,7 +26,7 @@ const CreateEvent = () => {
   useScrollToTop();
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
-  const sdk = useEIAProtocolSDK();
+  const sdk = useAriyaSDK();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
   const eventRegistryId = useNetworkVariable("eventRegistryId");
 
@@ -197,7 +197,7 @@ const CreateEvent = () => {
               navigate(`/event/${eventId}`);
             } else {
               console.warn("Could not extract event ID from result");
-              navigate("/dashboard/organizer");
+            navigate("/dashboard/organizer");
             }
           },
           onError: (error) => {
@@ -229,8 +229,8 @@ const CreateEvent = () => {
     <div className="min-h-screen bg-black pt-20 pb-6 sm:pb-10">
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="text-center mb-6 sm:mb-8">
-          <h1 className="text-3xl sm:text-4xl font-satoshi font-bold mb-2 sm:mb-4">
-            Create Your Event
+          <h1 className="text-3xl sm:text-4xl font-livvic font-bold mb-2 sm:mb-4">
+            Create New Event
           </h1>
           <p className="text-white/80 text-sm sm:text-base">
             Set up your decentralized event in a few simple steps

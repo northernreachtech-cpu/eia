@@ -1,13 +1,28 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap");
-@import url("https://api.fontshare.com/v2/css?f[]=satoshi@1,900,700,500,301,701,300,501,401,901,400,2&display=swap");
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --font-livvic: "Livvic", sans-serif;
+  --font-open-sans: "Open Sans", sans-serif;
+}
+
 @layer base {
+  html {
+    font-family: var(--font-open-sans);
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-livvic);
+  }
+
   body {
-    @apply bg-black text-white font-inter;
+    @apply bg-black text-white;
     /* Improved mobile touch behavior */
     -webkit-tap-highlight-color: transparent;
     -webkit-touch-callout: none;
@@ -78,6 +93,25 @@
   .mobile-text {
     @apply text-sm sm:text-base;
     @apply leading-relaxed;
+  }
+
+  .font-livvic {
+    font-family: "Livvic", sans-serif;
+  }
+
+  .font-open-sans {
+    font-family: "Open Sans", sans-serif;
+  }
+
+  /* Test class to verify fonts */
+  .test-livvic {
+    font-family: "Livvic", sans-serif !important;
+    font-weight: 700;
+  }
+
+  .test-open-sans {
+    font-family: "Open Sans", sans-serif !important;
+    font-weight: 400;
   }
 }
 

@@ -25,7 +25,7 @@ function AppContent() {
   useScrollToTop();
 
   return (
-    <div className="min-h-screen bg-black px-4 py-2 sm:px-6 sm:py-4 lg:px-8 lg:py-6">
+    <div className="min-h-screen bg-black px-4 py-2 sm:px-6 sm:py-4 lg:px-8 lg:py-6 font-open-sans">
       <Navbar />
       <Routes>
         <Route path="/" element={<LandingPage />} />
@@ -48,7 +48,7 @@ function AppContent() {
 
 function App() {
   return (
-      <QueryClientProvider client={queryClient}>
+    <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="testnet">
         <WalletProvider autoConnect>
           <Router>
@@ -56,7 +56,7 @@ function App() {
           </Router>
         </WalletProvider>
       </SuiClientProvider>
-      </QueryClientProvider>
+    </QueryClientProvider>
   );
 }
 

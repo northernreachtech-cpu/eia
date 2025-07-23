@@ -39,13 +39,8 @@ export class AttendanceVerificationSDK {
     eventId: string
   ): Promise<CheckInResult> {
     try {
-      console.log("=== QR CODE VALIDATION ===");
-      console.log("QR data received:", qrData);
-      console.log("Expected event ID:", eventId);
-
       // Validate event ID matches
       if (qrData.event_id !== eventId) {
-        console.log("❌ Event ID mismatch");
         return {
           success: false,
           message: "QR code is not valid for this event",
@@ -54,7 +49,6 @@ export class AttendanceVerificationSDK {
 
       // Validate pass hash format
       if (!qrData.pass_hash || typeof qrData.pass_hash !== "string") {
-        console.log("❌ Invalid pass hash format");
         return {
           success: false,
           message: "Invalid pass hash format in QR code",
@@ -68,7 +62,6 @@ export class AttendanceVerificationSDK {
       );
 
       if (!registrationStatus) {
-        console.log("❌ User not registered");
         return {
           success: false,
           message: "User is not registered for this event",
@@ -77,7 +70,6 @@ export class AttendanceVerificationSDK {
 
       // Check if already checked in
       if (registrationStatus.checked_in) {
-        console.log("❌ Already checked in");
         return {
           success: false,
           message: "User has already been checked in",
@@ -92,14 +84,12 @@ export class AttendanceVerificationSDK {
       );
 
       if (!isValidPassHash) {
-        console.log("❌ Pass hash validation failed");
         return {
           success: false,
           message: "Invalid pass hash - QR code may be corrupted or expired",
         };
       }
 
-      console.log("✅ QR code validation successful");
       return {
         success: true,
         message: "QR code validated successfully",
@@ -123,20 +113,11 @@ export class AttendanceVerificationSDK {
     userAddress: string
   ): Promise<boolean> {
     try {
-      console.log("=== PASS HASH VALIDATION ===");
-      console.log("Validating pass hash:", passHash);
-      console.log("For event:", eventId);
-      console.log("For user:", userAddress);
-
       // Get the expected pass hash from the blockchain
       const expectedPassHash = await this.getExpectedPassHashFromBlockchain(
         eventId,
         userAddress
       );
-
-      console.log("Expected pass hash:", expectedPassHash);
-      console.log("Received pass hash:", passHash);
-      console.log("Hashes match:", passHash === expectedPassHash);
 
       return passHash === expectedPassHash;
     } catch (error) {
@@ -187,8 +168,6 @@ export class AttendanceVerificationSDK {
                 eventData.event_id === eventId &&
                 eventData.wallet === userAddress
               ) {
-                console.log("Found PassGenerated event:", eventData);
-
                 // Generate the expected pass hash using the same logic as the Move contract
                 const expectedHash = this.generateMoveCompatiblePassHash(
                   eventData.pass_id,
@@ -196,7 +175,6 @@ export class AttendanceVerificationSDK {
                   userAddress
                 );
 
-                console.log("Generated expected hash:", expectedHash);
                 return expectedHash;
               }
             }
@@ -204,7 +182,6 @@ export class AttendanceVerificationSDK {
         }
       }
 
-      console.log("Could not find PassGenerated event for validation");
       return "not_found";
     } catch (error) {
       console.error("Error getting expected pass hash:", error);
@@ -220,9 +197,6 @@ export class AttendanceVerificationSDK {
     eventId: string,
     wallet: string
   ): string {
-    console.log("=== GENERATING EXPECTED PASS HASH ===");
-    console.log("Input parameters:", { passId, eventId, wallet });
-
     // This is the EXACT same logic as the Move contract:
     // fun generate_pass_hash(pass_id: u64, event_id: ID, wallet: address): vector<u8> {
     //     let mut data = vector::empty<u8>();
@@ -253,7 +227,6 @@ export class AttendanceVerificationSDK {
       .map((b: number) => b.toString(16).padStart(2, "0"))
       .join("");
 
-    console.log("Generated expected hash:", hashString);
     return hashString;
   }
 
@@ -453,25 +426,26 @@ export class AttendanceVerificationSDK {
   }
 
   /**
-   * Check-out an attendee
+   * Check-out an attendee (contract-accurate)
+   * Calls eia::attendance_verification::check_out(wallet, event_id, attendance_registry, clock, ctx)
+   * Transfers the MintCompletionCapability to the attendee to avoid UnusedValueWithoutDrop error.
    */
   checkOutAttendee(
-    eventId: string,
     attendeeAddress: string,
+    eventId: string,
     attendanceRegistryId: string
   ): Transaction {
     const tx = new Transaction();
-
-    tx.moveCall({
-      target: `${this.packageId}::attendance_verification::check_out_attendee`,
+    const [completionCap] = tx.moveCall({
+      target: `${this.packageId}::attendance_verification::check_out`,
       arguments: [
-        tx.object(eventId),
-        tx.pure.address(attendeeAddress),
-        tx.object(attendanceRegistryId),
-        tx.object(CLOCK_ID),
+        tx.pure.address(attendeeAddress), // wallet
+        tx.object(eventId), // event_id
+        tx.object(attendanceRegistryId), // attendance_registry
+        tx.object(CLOCK_ID), // clock
       ],
     });
-
+    tx.transferObjects([completionCap], attendeeAddress);
     return tx;
   }
 
@@ -529,5 +503,47 @@ export class AttendanceVerificationSDK {
       console.error("Error fetching event attendance:", error);
       return [];
     }
+  }
+
+  /**
+   * Mint Completion NFT for a user after check-out
+   * Finds the MintCompletionCapability for the event and calls the contract mint function
+   */
+  async mintCompletionNFT(
+    userAddress: string,
+    eventId: string,
+    nftRegistryId: string,
+    signAndExecute: (params: { transaction: Transaction }) => Promise<any>
+  ): Promise<any> {
+    // 1. Find the MintCompletionCapability object for this user and event
+    const { data: objects } = await suiClient.getOwnedObjects({
+      owner: userAddress,
+      filter: {
+        StructType: `${this.packageId}::attendance_verification::MintCompletionCapability`,
+      },
+      options: { showContent: true },
+    });
+    let capabilityId: string | null = null;
+    for (const obj of objects) {
+      const content = obj.data?.content;
+      // Only access fields if content is a moveObject with fields
+      if (content && content.dataType === "moveObject" && "fields" in content) {
+        const fields = (content as any).fields;
+        if (fields && fields.event_id === eventId && obj.data) {
+          capabilityId = obj.data.objectId;
+          break;
+        }
+      }
+    }
+    if (!capabilityId)
+      throw new Error("No MintCompletionCapability found for this event");
+    // 2. Build the mint transaction
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${this.packageId}::nft_minting::mint_nft_of_completion`,
+      arguments: [tx.object(capabilityId), tx.object(nftRegistryId)],
+    });
+    // 3. Execute the transaction
+    return signAndExecute({ transaction: tx });
   }
 }

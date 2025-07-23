@@ -3,7 +3,7 @@ import { Search, Star, Users, Calendar, Loader2 } from "lucide-react";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import { useNavigate } from "react-router-dom";
-import { useEIAProtocolSDK } from "../lib/sdk";
+import { useAriyaSDK } from "../lib/sdk";
 import useScrollToTop from "../hooks/useScrollToTop";
 
 interface OrganizerProfile {
@@ -21,7 +21,7 @@ interface OrganizerProfile {
 const ConvenerMarketplace = () => {
   useScrollToTop();
   const navigate = useNavigate();
-  const sdk = useEIAProtocolSDK();
+  const sdk = useAriyaSDK();
 
   const [organizers, setOrganizers] = useState<OrganizerProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -104,7 +104,7 @@ const ConvenerMarketplace = () => {
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           {/* Header */}
           <div className="text-center mb-8 lg:mb-12">
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text mb-3 lg:mb-4">
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-livvic font-bold bg-gradient-to-r from-primary to-secondary text-transparent bg-clip-text mb-3 lg:mb-4">
               Convener Marketplace
             </h1>
             <p className="text-base sm:text-lg lg:text-xl text-white/70 max-w-3xl mx-auto leading-relaxed">
@@ -229,17 +229,7 @@ const ConvenerMarketplace = () => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex flex-col gap-3 sm:flex-row">
-                    <Button className="flex-1 group-hover:scale-105 transition-transform py-3 sm:py-2">
-                      View Events
-                    </Button>
-                    <Button
-                      variant="outline"
-                      className="flex-1 group-hover:scale-105 transition-transform py-3 sm:py-2"
-                    >
-                      Contact
-                    </Button>
-                  </div>
+                  {/* Removed View Events and Contact buttons */}
                 </div>
               </Card>
             ))}

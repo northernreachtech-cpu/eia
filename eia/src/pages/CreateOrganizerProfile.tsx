@@ -5,7 +5,7 @@ import {
   useCurrentAccount,
   useSignAndExecuteTransaction,
 } from "@mysten/dapp-kit";
-import { useEIAProtocolSDK } from "../lib/sdk";
+import { useAriyaSDK } from "../lib/sdk";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import { suiClient } from "../config/sui";
@@ -23,7 +23,7 @@ const CreateOrganizerProfile = () => {
 
   const navigate = useNavigate();
   const currentAccount = useCurrentAccount();
-  const sdk = useEIAProtocolSDK();
+  const sdk = useAriyaSDK();
   const { mutate: signAndExecute } = useSignAndExecuteTransaction();
 
   // Check if user already has a profile
