@@ -67,8 +67,8 @@ const StatCard = ({
       <div className="relative z-10">
         <div className="flex items-start justify-between mb-4">
           <div className="flex-1">
-            <p className="text-sm text-white/70 mb-1">{title}</p>
-            <p className="text-3xl font-bold text-white">{value}</p>
+            <p className="text-sm text-white/70 mb-1 font-open-sans">{title}</p>
+            <p className="text-3xl font-bold text-white font-livvic">{value}</p>
           </div>
 
           {/* Icon */}
@@ -82,12 +82,12 @@ const StatCard = ({
         {/* Description and trend */}
         <div className="flex items-center justify-between">
           {description && (
-            <p className="text-sm text-white/60 flex-1">{description}</p>
+            <p className="text-sm text-white/60 flex-1 font-open-sans">{description}</p>
           )}
 
           {trend && (
             <div
-              className={`flex items-center text-sm font-medium ${
+              className={`flex items-center text-sm font-medium font-open-sans ${
                 trend.isPositive ? "text-green-400" : "text-red-400"
               }`}
             >

@@ -6,6 +6,7 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  //Loader2,
 } from "lucide-react";
 import { useCurrentAccount } from "@mysten/dapp-kit";
 import { useAriyaSDK } from "../lib/sdk";
@@ -14,6 +15,35 @@ import Card from "../components/Card";
 import Button from "../components/Button";
 // import EventCard from "../components/EventCard";
 import useScrollToTop from "../hooks/useScrollToTop";
+
+// Skeleton loader component for event cards
+const EventCardSkeleton = () => (
+  <Card className="p-6 animate-pulse">
+    <div className="flex items-start justify-between mb-4">
+      <div className="flex-1">
+        <div className="h-6 bg-white/10 rounded mb-2 w-3/4"></div>
+        <div className="h-4 bg-white/10 rounded w-1/2"></div>
+      </div>
+      <div className="h-6 bg-white/10 rounded w-16"></div>
+    </div>
+
+    <div className="space-y-3 mb-6">
+      <div className="flex items-center">
+        <div className="h-4 w-4 bg-white/10 rounded mr-2"></div>
+        <div className="h-4 bg-white/10 rounded w-24"></div>
+      </div>
+      <div className="flex items-center">
+        <div className="h-4 w-4 bg-white/10 rounded mr-2"></div>
+        <div className="h-4 bg-white/10 rounded w-32"></div>
+      </div>
+    </div>
+
+    <div className="space-y-2">
+      <div className="h-8 bg-white/10 rounded"></div>
+      <div className="h-8 bg-white/10 rounded"></div>
+    </div>
+  </Card>
+);
 
 const Events = () => {
   useScrollToTop();
@@ -169,85 +199,96 @@ const Events = () => {
             </div>
           </div>
 
+          {/* Loading State */}
+          {loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <EventCardSkeleton key={index} />
+              ))}
+            </div>
+          )}
+
           {/* Events Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
-            {currentEvents.map((event) => (
-              <Card key={event.id} hover className="p-6 sm:p-8">
-                <div className="flex items-start justify-between mb-4 sm:mb-6">
-                  <div className="flex-1">
-                    <h3 className="text-lg sm:text-xl font-semibold mb-2">
-                      {event.name}
-                    </h3>
-                    <p
-                      className={`text-sm font-medium px-3 py-1.5 rounded-full inline-flex items-center justify-center shadow-sm backdrop-blur-sm ${getStatusColor(
-                        event.state
-                      )}`}
-                    >
-                      {getStatusText(event.state)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center text-white/70">
-                    <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm">
-                      {formatDate(event.start_time)} at{" "}
-                      {formatTime(event.start_time)}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center text-white/70">
-                    <Users className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm">
-                      Organized by {event.organizer.slice(0, 8)}...
-                    </span>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="space-y-2">
-                  {currentAccount ? (
-                    event.isOrganizer ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full"
-                        disabled
+          {!loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
+              {currentEvents.map((event) => (
+                <Card key={event.id} hover className="p-6 sm:p-8">
+                  <div className="flex items-start justify-between mb-4 sm:mb-6">
+                    <div className="flex-1">
+                      <h3 className="text-lg sm:text-xl font-semibold mb-2">
+                        {event.name}
+                      </h3>
+                      <p
+                        className={`text-sm font-medium px-3 py-1.5 rounded-full inline-flex items-center justify-center shadow-sm backdrop-blur-sm ${getStatusColor(
+                          event.state
+                        )}`}
                       >
-                        You're the Organizer
-                      </Button>
-                    ) : event.isRegistered ? (
-                      <Button variant="outline" size="sm" className="w-full">
-                        ✓ Registered
-                      </Button>
+                        {getStatusText(event.state)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center text-white/70">
+                      <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm">
+                        {formatDate(event.start_time)} at{" "}
+                        {formatTime(event.start_time)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center text-white/70">
+                      <Users className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm">
+                        Organized by {event.organizer.slice(0, 8)}...
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    {currentAccount ? (
+                      event.isOrganizer ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          disabled
+                        >
+                          You're the Organizer
+                        </Button>
+                      ) : event.isRegistered ? (
+                        <Button variant="outline" size="sm" className="w-full">
+                          ✓ Registered
+                        </Button>
+                      ) : (
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => navigate(`/event/${event.id}`)}
+                        >
+                          Register Now
+                        </Button>
+                      )
                     ) : (
-                      <Button
-                        size="sm"
-                        className="w-full"
-                        onClick={() => navigate(`/event/${event.id}`)}
-                      >
-                        Register Now
+                      <Button size="sm" className="w-full" disabled>
+                        Connect Wallet to Register
                       </Button>
-                    )
-                  ) : (
-                    <Button size="sm" className="w-full" disabled>
-                      Connect Wallet to Register
-                    </Button>
-                  )}
+                    )}
 
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => navigate(`/event/${event.id}`)}
-                  >
-                    View Details
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full"
+                      onClick={() => navigate(`/event/${event.id}`)}
+                    >
+                      View Details
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Empty State */}
           {filteredEvents.length === 0 && !loading && (
@@ -263,14 +304,6 @@ const Events = () => {
                   ? "Try adjusting your search terms"
                   : "Check back later for new events"}
               </p>
-            </div>
-          )}
-
-          {/* Loading State */}
-          {loading && (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <p className="text-white/60 mt-4">Loading events...</p>
             </div>
           )}
 

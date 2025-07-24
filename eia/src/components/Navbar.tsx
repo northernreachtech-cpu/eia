@@ -13,6 +13,8 @@ const Navbar = () => {
     { name: "My Events", href: "/my-events" },
     { name: "Create Event", href: "/event/create" },
     { name: "Organizers", href: "/organizers" },
+    { name: "Sponsor", href: "/sponsor" },
+    { name: "SUI Workshop", href: "/sui-workshop", exclusive: true }, // Added SUI Workshop link
     { name: "Profile", href: "/profile/organizer/create" },
     // { name: "Community", href: "/community" },
   ];
@@ -49,6 +51,11 @@ const Navbar = () => {
                 )}
               >
                 {link.name}
+                {link.exclusive && (
+                  <span className="ml-2 px-2 py-0.5 text-xs rounded bg-gradient-to-r from-primary to-secondary text-white font-bold uppercase align-middle">
+                    Exclusive
+                  </span>
+                )}
               </Link>
             ))}
           </div>
@@ -90,6 +97,11 @@ const Navbar = () => {
                 onClick={() => setIsMenuOpen(false)}
               >
                 {link.name}
+                {link.exclusive && (
+                  <span className="ml-2 px-2 py-0.5 text-xs rounded bg-gradient-to-r from-primary to-secondary text-white font-bold uppercase align-middle">
+                    Exclusive
+                  </span>
+                )}
               </Link>
             ))}
             <div className="pt-4">

@@ -2,116 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Remove all font-family CSS variable logic and base overrides. Use Tailwind font classes only. */
+
 :root {
-  --font-livvic: "Livvic", sans-serif;
-  --font-open-sans: "Open Sans", sans-serif;
+  color-scheme: dark;
 }
 
 @layer base {
-  html {
-    font-family: var(--font-open-sans);
-  }
-
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    font-family: var(--font-livvic);
-  }
-
-  body {
-    @apply bg-black text-white;
-    /* Improved mobile touch behavior */
-    -webkit-tap-highlight-color: transparent;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-  }
-
-  /* Allow text selection on specific elements */
-  input,
-  textarea,
-  [contenteditable] {
-    -webkit-user-select: auto;
-    -khtml-user-select: auto;
-    -moz-user-select: auto;
-    -ms-user-select: auto;
-    user-select: auto;
-  }
-
-  /* Smooth scrolling */
-  html {
-    scroll-behavior: smooth;
+    @apply font-livvic;
   }
 }
 
 @layer components {
   .btn-gradient {
     @apply bg-gradient-to-r from-primary to-secondary hover:shadow-lg hover:shadow-primary/20 transition-all duration-300;
-    /* Better mobile tap feedback */
     @apply active:scale-95;
   }
-
   .card-glass {
     @apply bg-white/5 backdrop-blur-sm border border-white/10 rounded-xl shadow-xl;
   }
-
-  /* Mobile-optimized form inputs */
   .form-input {
     @apply w-full px-4 py-3 bg-white/5 border border-white/20 rounded-lg;
     @apply focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20;
-    @apply text-base; /* Prevents zoom on iOS */
+    @apply text-base;
     @apply transition-all duration-200;
   }
-
-  /* Mobile-first container with proper padding */
   .mobile-container {
     @apply px-4 sm:px-6 lg:px-8;
   }
-
-  /* Mobile-optimized spacing utilities */
   .mobile-section {
     @apply py-12 sm:py-16 lg:py-20;
   }
-
-  /* Better mobile typography */
   .mobile-heading {
     @apply text-2xl sm:text-3xl lg:text-4xl;
     @apply leading-tight;
   }
-
   .mobile-subheading {
     @apply text-lg sm:text-xl lg:text-2xl;
     @apply leading-relaxed;
   }
-
   .mobile-text {
     @apply text-sm sm:text-base;
     @apply leading-relaxed;
   }
-
   .font-livvic {
     font-family: "Livvic", sans-serif;
   }
-
   .font-open-sans {
     font-family: "Open Sans", sans-serif;
-  }
-
-  /* Test class to verify fonts */
-  .test-livvic {
-    font-family: "Livvic", sans-serif !important;
-    font-weight: 700;
-  }
-
-  .test-open-sans {
-    font-family: "Open Sans", sans-serif !important;
-    font-weight: 400;
   }
 }
 
@@ -119,27 +63,20 @@
   color-scheme: dark;
 }
 
-/* Mobile-specific improvements */
 @media (max-width: 640px) {
-  /* Improve mobile form experience */
   input[type="date"],
   input[type="time"],
   input[type="datetime-local"] {
     min-height: 44px;
   }
-
-  /* Prevent horizontal scroll */
   body {
     overflow-x: hidden;
   }
-
-  /* Better mobile button spacing */
   .mobile-button-group {
     gap: 0.75rem;
   }
 }
 
-/* iOS specific fixes */
 @supports (-webkit-appearance: none) {
   input[type="date"],
   input[type="time"] {
@@ -148,9 +85,8 @@
   }
 }
 
-/* Android specific improvements */
 @media screen and (max-width: 640px) {
   select {
-    font-size: 16px; /* Prevents zoom on Android */
+    font-size: 16px;
   }
 }

@@ -15,6 +15,8 @@ import SponsorDashboard from "./pages/SponsorDashboard";
 import CommunityHub from "./pages/CommunityHub";
 import CreateOrganizerProfile from "./pages/CreateOrganizerProfile";
 import useScrollToTop from "./hooks/useScrollToTop";
+import SUIWorkshop from "./pages/SUIWorkshop";
+import AdminWorkshopResponses from "./pages/AdminWorkshopResponses";
 
 import "@mysten/dapp-kit/dist/index.css";
 
@@ -41,6 +43,11 @@ function AppContent() {
         <Route path="/dashboard/organizer" element={<OrganizerDashboard />} />
         <Route path="/dashboard/sponsor" element={<SponsorDashboard />} />
         <Route path="/community" element={<CommunityHub />} />
+        <Route path="/sui-workshop" element={<SUIWorkshop />} />
+        <Route
+          path="/admin/workshop-responses"
+          element={<AdminWorkshopResponses />}
+        />
       </Routes>
     </div>
   );

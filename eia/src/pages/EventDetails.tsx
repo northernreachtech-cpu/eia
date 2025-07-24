@@ -7,8 +7,8 @@ import {
   QrCode,
   Share2,
   Trophy,
-  //   Star,
   Loader2,
+  Star,
 } from "lucide-react";
 import {
   useCurrentAccount,
@@ -23,6 +23,96 @@ import useScrollToTop from "../hooks/useScrollToTop";
 // import { useMemo } from "react";
 import { Transaction } from "@mysten/sui/transactions";
 import { suiClient } from "../config/sui";
+import { EscrowSettlementSDK } from "../lib/sdk";
+
+// Skeleton loader components for EventDetails
+const EventDetailsSkeleton = () => (
+  <div className="min-h-screen bg-black pt-20 pb-6 sm:pb-10">
+    <div className="container mx-auto px-4 py-6 sm:py-8">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+        {/* Main Content */}
+        <div className="lg:col-span-2 space-y-6 sm:space-y-8">
+          {/* About Section */}
+          <Card className="p-4 sm:p-6 animate-pulse">
+            <div className="h-8 bg-white/10 rounded mb-4 w-1/3"></div>
+            <div className="space-y-2">
+              <div className="h-4 bg-white/10 rounded w-full"></div>
+              <div className="h-4 bg-white/10 rounded w-5/6"></div>
+              <div className="h-4 bg-white/10 rounded w-4/6"></div>
+            </div>
+          </Card>
+
+          {/* Organizer Section */}
+          <Card className="p-4 sm:p-6 animate-pulse">
+            <div className="h-8 bg-white/10 rounded mb-4 w-1/3"></div>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-0">
+              <div className="w-16 h-16 rounded-full bg-white/10"></div>
+              <div className="flex-1 min-w-0">
+                <div className="h-5 bg-white/10 rounded w-24 mb-2"></div>
+                <div className="h-4 bg-white/10 rounded w-48"></div>
+              </div>
+              <div className="h-8 bg-white/10 rounded w-24"></div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Sidebar */}
+        <div className="space-y-4 sm:space-y-6">
+          {/* Action Card */}
+          <Card className="p-4 sm:p-6 animate-pulse">
+            <div className="text-center mb-6">
+              <div className="h-8 bg-white/10 rounded w-16 mx-auto mb-1"></div>
+              <div className="h-4 bg-white/10 rounded w-20 mx-auto"></div>
+            </div>
+
+            <div className="space-y-4 mb-6">
+              <div className="h-12 bg-white/10 rounded"></div>
+              <div className="h-12 bg-white/10 rounded"></div>
+            </div>
+
+            <div className="border-t border-white/10 pt-4 space-y-3">
+              <div className="flex justify-between">
+                <div className="h-4 bg-white/10 rounded w-20"></div>
+                <div className="h-4 bg-white/10 rounded w-16"></div>
+              </div>
+              <div className="flex justify-between">
+                <div className="h-4 bg-white/10 rounded w-16"></div>
+                <div className="h-4 bg-white/10 rounded w-20"></div>
+              </div>
+              <div className="flex justify-between">
+                <div className="h-4 bg-white/10 rounded w-20"></div>
+                <div className="h-4 bg-white/10 rounded w-16"></div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Event Details */}
+          <Card className="p-4 sm:p-6 animate-pulse">
+            <div className="h-6 bg-white/10 rounded mb-4 w-1/2"></div>
+            <div className="space-y-3">
+              <div className="flex justify-between">
+                <div className="h-4 bg-white/10 rounded w-16"></div>
+                <div className="h-4 bg-white/10 rounded w-20"></div>
+              </div>
+              <div className="flex justify-between">
+                <div className="h-4 bg-white/10 rounded w-20"></div>
+                <div className="h-4 bg-white/10 rounded w-16"></div>
+              </div>
+              <div className="flex justify-between">
+                <div className="h-4 bg-white/10 rounded w-16"></div>
+                <div className="h-4 bg-white/10 rounded w-20"></div>
+              </div>
+              <div className="flex justify-between">
+                <div className="h-4 bg-white/10 rounded w-20"></div>
+                <div className="h-4 bg-white/10 rounded w-16"></div>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 interface EventData {
   id: string;
@@ -94,6 +184,50 @@ const EventDetails = () => {
   } | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareEventLink, setShareEventLink] = useState("");
+  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [organizerProfile, setOrganizerProfile] = useState<any>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState("");
+  const [showSponsorModal, setShowSponsorModal] = useState(false);
+  const [sponsorAmount, setSponsorAmount] = useState(0);
+  const [sponsorLoading, setSponsorLoading] = useState(false);
+  const [sponsorError, setSponsorError] = useState("");
+  const [sponsorSuccess, setSponsorSuccess] = useState("");
+  const escrowRegistryId = useNetworkVariable("escrowRegistryId");
+  const clockId = "0x6";
+  const [escrowSDK, setEscrowSDK] = useState<EscrowSettlementSDK | null>(null);
+
+  useEffect(() => {
+    setEscrowSDK(new EscrowSettlementSDK(sdk.eventManagement.getPackageId()));
+  }, [sdk]);
+
+  // Helper to fetch organizer profile by address
+  const fetchOrganizerProfile = async (organizerAddress: string) => {
+    setProfileLoading(true);
+    setProfileError("");
+    setOrganizerProfile(null);
+    try {
+      const allProfiles = await sdk.eventManagement.getAllOrganizers();
+      const normalize = (addr: string) => {
+        if (!addr) return "";
+        return addr.toLowerCase().startsWith("0x")
+          ? addr.toLowerCase()
+          : `0x${addr.toLowerCase()}`;
+      };
+      const profile = allProfiles.find(
+        (p: any) => normalize(p.address) === normalize(organizerAddress)
+      );
+      if (profile) {
+        setOrganizerProfile(profile);
+      } else {
+        setProfileError("Organizer profile not found.");
+      }
+    } catch (e) {
+      setProfileError("Failed to load organizer profile.");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   useEffect(() => {
     const loadEvent = async () => {
@@ -385,18 +519,7 @@ const EventDetails = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black pt-20 pb-6 sm:pb-10">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-center min-h-[400px]">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-6 w-6 animate-spin text-primary" />
-              <span className="text-white">Loading event...</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <EventDetailsSkeleton />;
   }
 
   if (!event) {
@@ -503,7 +626,15 @@ const EventDetails = () => {
                     {event.organizer}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" className="mt-2 sm:mt-0">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-2 sm:mt-0"
+                  onClick={() => {
+                    fetchOrganizerProfile(event.organizer);
+                    setShowProfileModal(true);
+                  }}
+                >
                   View Profile
                 </Button>
               </div>
@@ -614,6 +745,18 @@ const EventDetails = () => {
                       ✓ You're registered for this event
                     </div>
                   </div>
+                )}
+
+                {/* Sponsor this Event Button */}
+                {!isOrganizer && event.state === 1 && (
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="w-full font-livvic"
+                    onClick={() => setShowSponsorModal(true)}
+                  >
+                    Sponsor this Event
+                  </Button>
                 )}
 
                 <Button
@@ -744,6 +887,183 @@ const EventDetails = () => {
             >
               Close
             </Button>
+          </div>
+        </div>
+      )}
+      {/* Organizer Profile Modal */}
+      {showProfileModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="relative bg-white/20 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-2xl max-w-md w-full mx-4 p-0 overflow-hidden animate-slide-up">
+            <div className="flex flex-col items-center justify-center pt-8 pb-2 bg-gradient-to-r from-primary/80 to-secondary/80">
+              <span className="text-5xl mb-2">👤</span>
+              <h3 className="text-2xl font-bold text-white drop-shadow mb-1">
+                Organizer Profile
+              </h3>
+            </div>
+            <div className="px-8 py-6 flex flex-col gap-4">
+              {profileLoading ? (
+                <div className="flex flex-col items-center justify-center py-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary mb-2" />
+                  <span className="text-white/80">Loading profile...</span>
+                </div>
+              ) : profileError ? (
+                <div className="text-red-500 text-center">{profileError}</div>
+              ) : organizerProfile ? (
+                <>
+                  <div className="flex flex-col items-center mb-2">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-primary to-secondary flex items-center justify-center text-white font-bold text-2xl mb-2">
+                      {organizerProfile.name?.charAt(0).toUpperCase() || "?"}
+                    </div>
+                    <div className="text-xl font-semibold text-primary mb-1">
+                      {organizerProfile.name || "Unnamed Organizer"}
+                    </div>
+                    <div className="text-xs text-white/60 break-all mb-2">
+                      {organizerProfile.address}
+                    </div>
+                  </div>
+                  <div className="mb-2 text-white/80 text-sm whitespace-pre-line">
+                    {organizerProfile.bio}
+                  </div>
+                  <div className="flex flex-wrap gap-3 justify-center text-xs text-white/80 mb-2">
+                    <div>
+                      <span className="font-bold text-primary">
+                        {organizerProfile.total_events}
+                      </span>{" "}
+                      events
+                    </div>
+                    <div>
+                      <span className="font-bold text-primary">
+                        {organizerProfile.successful_events}
+                      </span>{" "}
+                      successful
+                    </div>
+                    <div>
+                      <span className="font-bold text-primary">
+                        {organizerProfile.total_attendees_served}
+                      </span>{" "}
+                      attendees
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-center gap-1 mb-2">
+                    <Star className="h-4 w-4 text-yellow-400" />
+                    <span className="text-white/80 font-semibold">
+                      {(organizerProfile.avg_rating / 100).toFixed(1)} / 5.0
+                    </span>
+                  </div>
+                  <div className="text-xs text-white/50 text-center mb-2">
+                    Profile created:{" "}
+                    {new Date(organizerProfile.created_at).toLocaleDateString()}
+                  </div>
+                </>
+              ) : null}
+              <Button
+                variant="outline"
+                onClick={() => setShowProfileModal(false)}
+                className="w-full mt-2"
+              >
+                Close
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Sponsor Modal */}
+      {showSponsorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="relative bg-white/20 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-2xl max-w-md w-full mx-4 p-0 overflow-hidden animate-slide-up">
+            <div className="flex flex-col items-center justify-center pt-8 pb-2 bg-gradient-to-r from-primary/80 to-secondary/80">
+              <span className="text-5xl mb-2">💸</span>
+              <h3 className="text-2xl font-bold text-white drop-shadow mb-1 font-livvic">
+                Sponsor this Event
+              </h3>
+              <p className="text-white/80 text-sm font-open-sans mb-2">
+                Fund this event and help it succeed! Your funds are escrowed and
+                only released if all sponsor conditions are met.
+              </p>
+            </div>
+            <div className="px-8 py-6 flex flex-col gap-4 font-open-sans">
+              <label className="text-white/80 text-sm font-semibold mb-1 font-livvic">
+                Sponsorship Amount (SUI)
+              </label>
+              <input
+                type="number"
+                min={0.01}
+                step={0.01}
+                className="w-full p-3 rounded-lg border border-white/20 bg-white/60 text-gray-900 font-semibold text-lg focus:ring-2 focus:ring-primary/40 outline-none"
+                value={sponsorAmount}
+                onChange={(e) => setSponsorAmount(Number(e.target.value))}
+                disabled={sponsorLoading}
+              />
+              {sponsorError && (
+                <div className="text-red-500 text-sm mb-2">{sponsorError}</div>
+              )}
+              {sponsorSuccess && (
+                <div className="text-green-500 text-sm mb-2">
+                  {sponsorSuccess}
+                </div>
+              )}
+              <div className="flex gap-3 mt-2">
+                <Button
+                  onClick={async () => {
+                    setSponsorLoading(true);
+                    setSponsorError("");
+                    setSponsorSuccess("");
+                    try {
+                      if (
+                        !currentAccount ||
+                        !escrowSDK ||
+                        !escrowRegistryId ||
+                        !event
+                      )
+                        throw new Error("Missing data");
+                      if (sponsorAmount <= 0)
+                        throw new Error("Enter a valid amount");
+                      // Find a SUI coin object in the user's wallet with enough balance
+                      const { data: coins } = await suiClient.getCoins({
+                        owner: currentAccount.address,
+                        coinType: "0x2::sui::SUI",
+                      });
+                      const coin = coins.find(
+                        (c: any) => Number(c.balance) >= sponsorAmount * 1e9
+                      );
+                      if (!coin)
+                        throw new Error(
+                          "No SUI coin with enough balance found"
+                        );
+                      // Build and execute the transaction
+                      const tx = escrowSDK.fundEvent(
+                        event.id,
+                        currentAccount.address,
+                        coin.coinObjectId,
+                        escrowRegistryId,
+                        clockId
+                      );
+                      await signAndExecute({ transaction: tx });
+                      setSponsorSuccess(
+                        "Sponsorship successful! Your funds are now escrowed."
+                      );
+                      setTimeout(() => setShowSponsorModal(false), 1500);
+                    } catch (e: any) {
+                      setSponsorError(e.message || "Failed to sponsor event");
+                    } finally {
+                      setSponsorLoading(false);
+                    }
+                  }}
+                  disabled={sponsorLoading || sponsorAmount <= 0}
+                  className="flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold py-2 rounded-xl shadow-lg hover:from-secondary hover:to-primary transition-all text-base min-w-0 font-livvic"
+                >
+                  {sponsorLoading ? "Sponsoring..." : "Sponsor"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSponsorModal(false)}
+                  className="flex-1 border-0 bg-white/60 text-gray-700 font-semibold py-2 rounded-xl hover:bg-white/80 transition-all text-base min-w-0 font-livvic"
+                  disabled={sponsorLoading}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

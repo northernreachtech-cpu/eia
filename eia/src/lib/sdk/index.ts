@@ -42,5 +42,8 @@ export {
   type QRCodeData,
 } from "./attendanceVerification";
 
+// Add export for EscrowSettlementSDK (to be implemented)
+export { EscrowSettlementSDK } from "./escrowSettlement";
+
 // Re-export ERROR_CODES with explicit naming to avoid conflicts
 export { ERROR_CODES as EVENT_MANAGEMENT_ERROR_CODES } from "./eventManagement";

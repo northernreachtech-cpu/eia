@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Star,
   CheckCircle,
+  //Loader2,
 } from "lucide-react";
 import {
   useCurrentAccount,
@@ -54,6 +55,34 @@ const SuccessModal = ({
     </div>
   );
 };
+
+// Skeleton loader component for MyEvents
+const MyEventCardSkeleton = () => (
+  <Card className="p-6 sm:p-8 animate-pulse">
+    <div className="flex items-start justify-between mb-4 sm:mb-6">
+      <div className="flex-1">
+        <div className="h-6 bg-white/10 rounded mb-2 w-3/4"></div>
+        <div className="h-5 bg-white/10 rounded w-20"></div>
+      </div>
+    </div>
+
+    <div className="space-y-3 mb-6">
+      <div className="flex items-center">
+        <div className="h-4 w-4 bg-white/10 rounded mr-2"></div>
+        <div className="h-4 bg-white/10 rounded w-24"></div>
+      </div>
+      <div className="flex items-center">
+        <div className="h-4 w-4 bg-white/10 rounded mr-2"></div>
+        <div className="h-4 bg-white/10 rounded w-32"></div>
+      </div>
+    </div>
+
+    <div className="space-y-2">
+      <div className="h-8 bg-white/10 rounded"></div>
+      <div className="h-8 bg-white/10 rounded"></div>
+    </div>
+  </Card>
+);
 
 const MyEvents = () => {
   useScrollToTop();
@@ -262,24 +291,38 @@ const MyEvents = () => {
             // Attach organizer_profile_id
             const normalize = (addr: string) => {
               if (!addr) return "";
-              return addr.toLowerCase().startsWith("0x") ? addr.toLowerCase() : `0x${addr.toLowerCase()}`;
+              return addr.toLowerCase().startsWith("0x")
+                ? addr.toLowerCase()
+                : `0x${addr.toLowerCase()}`;
             };
             const organizerProfile = allProfiles.find(
-              (profile) => normalize(profile.address) === normalize(event.organizer)
+              (profile) =>
+                normalize(profile.address) === normalize(event.organizer)
             );
             if (!organizerProfile) {
-              console.warn('[EIA] No organizer profile found for event', event.id, 'organizer:', event.organizer);
+              console.warn(
+                "[EIA] No organizer profile found for event",
+                event.id,
+                "organizer:",
+                event.organizer
+              );
               // Log all profile addresses being compared
-              console.log('[EIA] All profile addresses:', allProfiles.map(p => p.address));
+              console.log(
+                "[EIA] All profile addresses:",
+                allProfiles.map((p) => p.address)
+              );
               // Log the full profile object if any profile address matches after normalization
               const matchingProfile = allProfiles.find(
-                (profile) => normalize(profile.address) === normalize(event.organizer)
+                (profile) =>
+                  normalize(profile.address) === normalize(event.organizer)
               );
               if (matchingProfile) {
-                console.log('[EIA] Matching profile object:', matchingProfile);
+                console.log("[EIA] Matching profile object:", matchingProfile);
               }
             }
-            const organizer_profile_id = organizerProfile ? organizerProfile.id : undefined;
+            const organizer_profile_id = organizerProfile
+              ? organizerProfile.id
+              : undefined;
             return {
               ...event,
               isRegistered: !!registration,
@@ -422,7 +465,7 @@ const MyEvents = () => {
           {/* Tab Navigation */}
           <div className="flex justify-center mb-8 sm:mb-12">
             <div className="flex space-x-1 bg-white/10 rounded-lg p-1">
-                        <button
+              <button
                 onClick={() => setActiveTab("attending")}
                 className={`px-4 py-2 rounded-md transition-colors ${
                   activeTab === "attending"
@@ -431,8 +474,8 @@ const MyEvents = () => {
                 }`}
               >
                 Attending
-                        </button>
-                        <button
+              </button>
+              <button
                 onClick={() => setActiveTab("completed")}
                 className={`px-4 py-2 rounded-md transition-colors ${
                   activeTab === "completed"
@@ -441,125 +484,127 @@ const MyEvents = () => {
                 }`}
               >
                 Completed
-                        </button>
+              </button>
             </div>
           </div>
 
           {/* Events Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
-            {currentEvents.map((event) => (
-              <Card key={event.id} hover className="p-6 sm:p-8">
-                <div className="flex items-start justify-between mb-4 sm:mb-6">
-                  <div className="flex-1">
-                    <h3 className="text-lg sm:text-xl font-semibold mb-2">
-                      {event.name}
-                    </h3>
-                    <p
-                      className={`text-sm font-medium px-3 py-1.5 rounded-full inline-flex items-center justify-center shadow-sm backdrop-blur-sm ${getAttendanceStatusColor(
-                        event.attendanceState
-                      )}`}
-                    >
-                      {getAttendanceStatusText(event.attendanceState)}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 mb-6">
-                  <div className="flex items-center text-white/70">
-                    <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm">
-                      {formatDate(event.start_time)} at{" "}
-                      {formatTime(event.start_time)}
-                    </span>
+          {!loading && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
+              {currentEvents.map((event) => (
+                <Card key={event.id} hover className="p-6 sm:p-8">
+                  <div className="flex items-start justify-between mb-4 sm:mb-6">
+                    <div className="flex-1">
+                      <h3 className="text-lg sm:text-xl font-semibold mb-2">
+                        {event.name}
+                      </h3>
+                      <p
+                        className={`text-sm font-medium px-3 py-1.5 rounded-full inline-flex items-center justify-center shadow-sm backdrop-blur-sm ${getAttendanceStatusColor(
+                          event.attendanceState
+                        )}`}
+                      >
+                        {getAttendanceStatusText(event.attendanceState)}
+                      </p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center text-white/70">
-                    <Users className="mr-2 h-4 w-4 flex-shrink-0" />
-                    <span className="text-sm">
-                      Organized by {event.organizer.slice(0, 8)}...
-                    </span>
-                  </div>
-                </div>
+                  <div className="space-y-3 mb-6">
+                    <div className="flex items-center text-white/70">
+                      <Calendar className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm">
+                        {formatDate(event.start_time)} at{" "}
+                        {formatTime(event.start_time)}
+                      </span>
+                    </div>
 
-                {/* Action Buttons */}
-                <div className="space-y-2">
-                  {(Array.isArray(event.attendanceState)
-                    ? event.attendanceState[0]
-                    : event.attendanceState) === 1 && (
-                    <Button
-                      size="sm"
-                      className="w-full"
-                      onClick={() => handleShowQR(event)}
-                    >
-                      <QrCode className="mr-2 h-4 w-4" />
-                      Show QR Code
-                    </Button>
-                  )}
-                  {(Array.isArray(event.attendanceState)
-                    ? event.attendanceState[0]
-                    : event.attendanceState) === 2 && (
-                    <>
-                      <div className="mb-2 flex items-center gap-2">
-                        <span className="inline-block px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30 text-blue-300 text-xs font-medium shadow-sm backdrop-blur-sm">
-                          Checked Out
-                        </span>
-                        <span className="inline-block px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium shadow-sm backdrop-blur-sm">
-                          Eligible to Mint NFT
-                        </span>
-                      </div>
+                    <div className="flex items-center text-white/70">
+                      <Users className="mr-2 h-4 w-4 flex-shrink-0" />
+                      <span className="text-sm">
+                        Organized by {event.organizer.slice(0, 8)}...
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-2">
+                    {(Array.isArray(event.attendanceState)
+                      ? event.attendanceState[0]
+                      : event.attendanceState) === 1 && (
                       <Button
-                        variant="outline"
                         size="sm"
                         className="w-full"
-                        onClick={() => handleMintCompletionNFT(event)}
+                        onClick={() => handleShowQR(event)}
                       >
-                        <Trophy className="mr-2 h-4 w-4" />
-                        Mint Completion NFT
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Show QR Code
                       </Button>
+                    )}
+                    {(Array.isArray(event.attendanceState)
+                      ? event.attendanceState[0]
+                      : event.attendanceState) === 2 && (
+                      <>
+                        <div className="mb-2 flex items-center gap-2">
+                          <span className="inline-block px-3 py-1.5 rounded-full bg-gradient-to-r from-blue-500/20 to-indigo-500/20 border border-blue-500/30 text-blue-300 text-xs font-medium shadow-sm backdrop-blur-sm">
+                            Checked Out
+                          </span>
+                          <span className="inline-block px-3 py-1.5 rounded-full bg-gradient-to-r from-emerald-500/20 to-green-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-medium shadow-sm backdrop-blur-sm">
+                            Eligible to Mint NFT
+                          </span>
+                        </div>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleMintCompletionNFT(event)}
+                        >
+                          <Trophy className="mr-2 h-4 w-4" />
+                          Mint Completion NFT
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleOpenRating(event)}
+                        >
+                          <Star className="mr-2 h-4 w-4" />
+                          Rate Event
+                        </Button>
+                      </>
+                    )}
+                    {(Array.isArray(event.attendanceState)
+                      ? event.attendanceState[0]
+                      : event.attendanceState) === 0 && (
                       <Button
-                        variant="outline"
                         size="sm"
                         className="w-full"
-                        onClick={() => handleOpenRating(event)}
+                        onClick={() => handleShowQR(event)}
                       >
-                        <Star className="mr-2 h-4 w-4" />
-                        Rate Event
+                        <QrCode className="mr-2 h-4 w-4" />
+                        Show QR Code
                       </Button>
-                    </>
-                  )}
-                  {(Array.isArray(event.attendanceState)
-                    ? event.attendanceState[0]
-                    : event.attendanceState) === 0 && (
+                    )}
                     <Button
+                      variant="ghost"
                       size="sm"
                       className="w-full"
-                      onClick={() => handleShowQR(event)}
+                      onClick={() =>
+                        navigate(`/event/${event.id}`, {
+                          state: {
+                            attendanceState: event.attendanceState,
+                            hasRecord: event.hasRecord,
+                            checkInTime: event.checkInTime,
+                            checkOutTime: event.checkOutTime,
+                          },
+                        })
+                      }
                     >
-                      <QrCode className="mr-2 h-4 w-4" />
-                      Show QR Code
+                      View Details
                     </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="w-full"
-                    onClick={() =>
-                      navigate(`/event/${event.id}`, {
-                        state: {
-                          attendanceState: event.attendanceState,
-                          hasRecord: event.hasRecord,
-                          checkInTime: event.checkInTime,
-                          checkOutTime: event.checkOutTime,
-                        },
-                      })
-                    }
-                  >
-                    View Details
-                  </Button>
-                </div>
-              </Card>
-            ))}
-          </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          )}
 
           {/* Pagination */}
           {totalPages > 1 && (
@@ -602,7 +647,7 @@ const MyEvents = () => {
           {filteredEvents.length === 0 && !loading && (
             <div className="text-center py-12 sm:py-16">
               <div className="mb-6">
-                  <Calendar className="h-16 w-16 mx-auto text-white/30" />
+                <Calendar className="h-16 w-16 mx-auto text-white/30" />
               </div>
               <h3 className="text-xl font-semibold mb-2 text-white/70">
                 No {activeTab} events yet
@@ -614,17 +659,18 @@ const MyEvents = () => {
                   "Complete events to see them here with your NFT rewards"}
               </p>
               <Button onClick={() => navigate("/events")}>
-                  <Calendar className="mr-2 h-4 w-4" />
+                <Calendar className="mr-2 h-4 w-4" />
                 Browse Events
-                </Button>
+              </Button>
             </div>
           )}
 
           {/* Loading State */}
           {loading && (
-            <div className="text-center py-12">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-              <p className="text-white/60 mt-4">Loading your events...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 sm:gap-8">
+              {Array.from({ length: 6 }).map((_, index) => (
+                <MyEventCardSkeleton key={index} />
+              ))}
             </div>
           )}
 

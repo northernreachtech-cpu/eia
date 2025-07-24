@@ -9,6 +9,7 @@ export default {
         accent: "#F1C40F", // Yellow for rewards
       },
       fontFamily: {
+        sans: ["Open Sans", "sans-serif"], // Default for body
         livvic: ["Livvic", "sans-serif"],
         "open-sans": ["Open Sans", "sans-serif"],
       },

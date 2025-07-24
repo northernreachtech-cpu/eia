@@ -68,6 +68,61 @@ const SuccessModal = ({
   );
 };
 
+// Skeleton loader component for organizer events
+const OrganizerEventSkeleton = () => (
+  <Card className="p-4 sm:p-6 animate-pulse">
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+      {/* Event Info */}
+      <div className="flex flex-col justify-between bg-white/5 rounded-lg p-4 h-full">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+          <div>
+            <div className="h-6 bg-white/10 rounded mb-2 w-3/4"></div>
+            <div className="h-4 bg-white/10 rounded w-1/2"></div>
+          </div>
+          <div className="h-5 bg-white/10 rounded w-16"></div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mb-4">
+          <div className="flex items-center justify-between mb-2">
+            <div className="h-4 bg-white/10 rounded w-16"></div>
+            <div className="h-4 bg-white/10 rounded w-12"></div>
+          </div>
+          <div className="w-full bg-white/10 rounded-full h-2">
+            <div className="bg-white/10 h-2 rounded-full w-1/3"></div>
+          </div>
+          <div className="h-3 bg-white/10 rounded w-12 mt-1"></div>
+        </div>
+      </div>
+
+      {/* Event Stats */}
+      <div className="flex flex-col justify-center bg-white/5 rounded-lg p-4 h-full min-w-[180px]">
+        <div className="flex flex-row items-center justify-between gap-4 mb-2">
+          <div className="flex-1 text-center p-2 rounded bg-white/10">
+            <div className="h-3 bg-white/10 rounded w-12 mb-1"></div>
+            <div className="h-4 bg-white/10 rounded w-16"></div>
+          </div>
+          <div className="flex-1 text-center p-2 rounded bg-white/10">
+            <div className="h-3 bg-white/10 rounded w-16 mb-1"></div>
+            <div className="h-4 bg-white/10 rounded w-12"></div>
+          </div>
+        </div>
+        <div className="text-center p-2 rounded bg-white/10 mt-2">
+          <div className="h-3 bg-white/10 rounded w-12 mb-2"></div>
+          <div className="h-4 bg-white/10 rounded w-20"></div>
+        </div>
+      </div>
+    </div>
+    {/* Actions Footer */}
+    <div className="flex flex-wrap gap-2 mt-6 border-t border-white/10 pt-4">
+      <div className="h-8 bg-white/10 rounded flex-1"></div>
+      <div className="h-8 bg-white/10 rounded flex-1"></div>
+      <div className="h-8 bg-white/10 rounded flex-1"></div>
+      <div className="h-8 bg-white/10 rounded flex-1"></div>
+    </div>
+  </Card>
+);
+
 const OrganizerDashboard = () => {
   useScrollToTop();
   const navigate = useNavigate();
@@ -524,216 +579,222 @@ const OrganizerDashboard = () => {
           ) : (
             <>
               <div className="grid gap-4 sm:gap-6">
-                {currentEvents.map((event) => (
-                  <Card
-                    key={event.id}
-                    className="p-4 sm:p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
-                  >
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-                      {/* Event Info */}
-                      <div className="flex flex-col justify-between bg-white/5 rounded-lg p-4 h-full">
-                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
-                          <div>
-                            <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2">
-                              {event.title}
-                            </h3>
-                            <p className="text-white/60 text-sm">
-                              {new Date(event.date).toLocaleDateString(
-                                "en-US",
-                                {
-                                  weekday: "long",
-                                  year: "numeric",
-                                  month: "long",
-                                  day: "numeric",
-                                }
-                              )}
-                            </p>
+                {loading
+                  ? // Show skeleton loaders while loading
+                    Array.from({ length: 3 }).map((_, index) => (
+                      <OrganizerEventSkeleton key={index} />
+                    ))
+                  : currentEvents.map((event) => (
+                      <Card
+                        key={event.id}
+                        className="p-4 sm:p-6 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
+                      >
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+                          {/* Event Info */}
+                          <div className="flex flex-col justify-between bg-white/5 rounded-lg p-4 h-full">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-4">
+                              <div>
+                                <h3 className="text-lg sm:text-xl font-semibold text-white mb-1 sm:mb-2">
+                                  {event.title}
+                                </h3>
+                                <p className="text-white/60 text-sm">
+                                  {new Date(event.date).toLocaleDateString(
+                                    "en-US",
+                                    {
+                                      weekday: "long",
+                                      year: "numeric",
+                                      month: "long",
+                                      day: "numeric",
+                                    }
+                                  )}
+                                </p>
+                              </div>
+
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                    event.status
+                                  )}`}
+                                >
+                                  {event.status.charAt(0).toUpperCase() +
+                                    event.status.slice(1)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Progress Bar */}
+                            <div className="mb-4">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm text-white/70">
+                                  Check-ins
+                                </span>
+                                <span className="text-sm text-white">
+                                  {event.checkedIn} / {event.totalCapacity}
+                                </span>
+                              </div>
+                              <div className="w-full bg-white/10 rounded-full h-2">
+                                <div
+                                  className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all duration-500"
+                                  style={{
+                                    width: `${Math.min(
+                                      (event.checkedIn / event.totalCapacity) *
+                                        100,
+                                      100
+                                    )}%`,
+                                  }}
+                                ></div>
+                              </div>
+                              <p className="text-xs text-white/60 mt-1">
+                                {Math.round(
+                                  (event.checkedIn / event.totalCapacity) * 100
+                                )}
+                                % capacity
+                              </p>
+                            </div>
                           </div>
 
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                                event.status
-                              )}`}
-                            >
-                              {event.status.charAt(0).toUpperCase() +
-                                event.status.slice(1)}
-                            </span>
-                          </div>
-                        </div>
-
-                        {/* Progress Bar */}
-                        <div className="mb-4">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-sm text-white/70">
-                              Check-ins
-                            </span>
-                            <span className="text-sm text-white">
-                              {event.checkedIn} / {event.totalCapacity}
-                            </span>
-                          </div>
-                          <div className="w-full bg-white/10 rounded-full h-2">
-                            <div
-                              className="bg-gradient-to-r from-primary to-secondary h-2 rounded-full transition-all duration-500"
-                              style={{
-                                width: `${Math.min(
-                                  (event.checkedIn / event.totalCapacity) * 100,
-                                  100
-                                )}%`,
-                              }}
-                            ></div>
-                          </div>
-                          <p className="text-xs text-white/60 mt-1">
-                            {Math.round(
-                              (event.checkedIn / event.totalCapacity) * 100
+                          {/* Event Stats */}
+                          <div className="flex flex-col justify-center bg-white/5 rounded-lg p-4 h-full min-w-[180px]">
+                            <div className="flex flex-row items-center justify-between gap-4 mb-2">
+                              {/* Escrow Status */}
+                              <div className="flex-1 text-center p-2 rounded bg-white/10">
+                                <div className="text-xs text-white/60 mb-1">
+                                  Escrow
+                                </div>
+                                <div
+                                  className={`text-sm font-medium ${getEscrowStatusColor(
+                                    event.escrowStatus
+                                  )}`}
+                                >
+                                  {event.escrowStatus.charAt(0).toUpperCase() +
+                                    event.escrowStatus.slice(1)}
+                                </div>
+                              </div>
+                              {/* Revenue */}
+                              <div className="flex-1 text-center p-2 rounded bg-white/10">
+                                <div className="text-xs text-white/60 mb-1">
+                                  Revenue
+                                </div>
+                                <div className="text-sm font-medium text-white">
+                                  ${event.revenue.toLocaleString()}
+                                </div>
+                              </div>
+                            </div>
+                            {/* Rating */}
+                            {event.rating > 0 && (
+                              <div className="text-center p-2 rounded bg-white/10 mt-2">
+                                <div className="text-xs text-white/60 mb-2">
+                                  Rating
+                                </div>
+                                <RatingStars
+                                  rating={event.rating}
+                                  size="sm"
+                                  showLabel
+                                />
+                              </div>
                             )}
-                            % capacity
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Event Stats */}
-                      <div className="flex flex-col justify-center bg-white/5 rounded-lg p-4 h-full min-w-[180px]">
-                        <div className="flex flex-row items-center justify-between gap-4 mb-2">
-                          {/* Escrow Status */}
-                          <div className="flex-1 text-center p-2 rounded bg-white/10">
-                            <div className="text-xs text-white/60 mb-1">
-                              Escrow
-                            </div>
-                            <div
-                              className={`text-sm font-medium ${getEscrowStatusColor(
-                                event.escrowStatus
-                              )}`}
-                            >
-                              {event.escrowStatus.charAt(0).toUpperCase() +
-                                event.escrowStatus.slice(1)}
-                            </div>
-                          </div>
-                          {/* Revenue */}
-                          <div className="flex-1 text-center p-2 rounded bg-white/10">
-                            <div className="text-xs text-white/60 mb-1">
-                              Revenue
-                            </div>
-                            <div className="text-sm font-medium text-white">
-                              ${event.revenue.toLocaleString()}
-                            </div>
                           </div>
                         </div>
-                        {/* Rating */}
-                        {event.rating > 0 && (
-                          <div className="text-center p-2 rounded bg-white/10 mt-2">
-                            <div className="text-xs text-white/60 mb-2">
-                              Rating
-                            </div>
-                            <RatingStars
-                              rating={event.rating}
+                        {/* Actions Footer */}
+                        <div className="flex flex-wrap gap-2 mt-6 border-t border-white/10 pt-4">
+                          {event.state === 0 && (
+                            <Button
                               size="sm"
-                              showLabel
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    {/* Actions Footer */}
-                    <div className="flex flex-wrap gap-2 mt-6 border-t border-white/10 pt-4">
-                      {event.state === 0 && (
-                        <Button
-                          size="sm"
-                          className="flex-1"
-                          onClick={() => handleActivateEvent(event.id)}
-                          disabled={activatingEvent === event.id}
-                        >
-                          {activatingEvent === event.id ? (
-                            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                          ) : (
-                            <Play className="mr-1 h-3 w-3" />
+                              className="flex-1"
+                              onClick={() => handleActivateEvent(event.id)}
+                              disabled={activatingEvent === event.id}
+                            >
+                              {activatingEvent === event.id ? (
+                                <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                              ) : (
+                                <Play className="mr-1 h-3 w-3" />
+                              )}
+                              {activatingEvent === event.id
+                                ? "Activating..."
+                                : "Activate"}
+                            </Button>
                           )}
-                          {activatingEvent === event.id
-                            ? "Activating..."
-                            : "Activate"}
-                        </Button>
-                      )}
 
-                      {event.state === 1 && (
-                        <>
+                          {event.state === 1 && (
+                            <>
+                              <Button
+                                size="sm"
+                                className="flex-1"
+                                onClick={() => handleCheckIn(event.id)}
+                              >
+                                <QrCode className="mr-1 h-3 w-3" />
+                                Check-in
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1"
+                                variant="secondary"
+                                onClick={() => handleCheckOut(event.id)}
+                              >
+                                <QrCode className="mr-1 h-3 w-3" />
+                                Check-out
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1"
+                                variant="outline"
+                                onClick={() => handleCompleteEvent(event)}
+                                disabled={completingEvent === event.id}
+                              >
+                                {completingEvent === event.id ? (
+                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Play className="mr-1 h-3 w-3" />
+                                )}
+                                {completingEvent === event.id
+                                  ? "Completing..."
+                                  : "Complete Event"}
+                              </Button>
+                            </>
+                          )}
+
                           <Button
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleCheckIn(event.id)}
-                          >
-                            <QrCode className="mr-1 h-3 w-3" />
-                            Check-in
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="flex-1"
-                            variant="secondary"
-                            onClick={() => handleCheckOut(event.id)}
-                          >
-                            <QrCode className="mr-1 h-3 w-3" />
-                            Check-out
-                          </Button>
-                          <Button
-                            size="sm"
-                            className="flex-1"
                             variant="outline"
-                            onClick={() => handleCompleteEvent(event)}
-                            disabled={completingEvent === event.id}
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => {
+                              setShareEventLink(
+                                window.location.origin + "/event/" + event.id
+                              );
+                              setShowShareModal(true);
+                            }}
                           >
-                            {completingEvent === event.id ? (
+                            <Share2 className="mr-1 h-3 w-3" />
+                            Share
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => navigate(`/event/${event.id}`)}
+                          >
+                            <Eye className="mr-1 h-3 w-3" />
+                            View
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => handleSetEventMetadata(event)}
+                            disabled={settingMetadataEvent === event.id}
+                          >
+                            {settingMetadataEvent === event.id ? (
                               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
                             ) : (
-                              <Play className="mr-1 h-3 w-3" />
+                              <Settings className="mr-1 h-3 w-3" />
                             )}
-                            {completingEvent === event.id
-                              ? "Completing..."
-                              : "Complete Event"}
+                            {settingMetadataEvent === event.id
+                              ? "Enabling..."
+                              : "Enable NFT Minting"}
                           </Button>
-                        </>
-                      )}
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => {
-                          setShareEventLink(
-                            window.location.origin + "/event/" + event.id
-                          );
-                          setShowShareModal(true);
-                        }}
-                      >
-                        <Share2 className="mr-1 h-3 w-3" />
-                        Share
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => navigate(`/event/${event.id}`)}
-                      >
-                        <Eye className="mr-1 h-3 w-3" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleSetEventMetadata(event)}
-                        disabled={settingMetadataEvent === event.id}
-                      >
-                        {settingMetadataEvent === event.id ? (
-                          <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                        ) : (
-                          <Settings className="mr-1 h-3 w-3" />
-                        )}
-                        {settingMetadataEvent === event.id
-                          ? "Enabling..."
-                          : "Enable NFT Minting"}
-                      </Button>
-                    </div>
-                  </Card>
-                ))}
+                        </div>
+                      </Card>
+                    ))}
               </div>
               {/* Pagination Controls */}
               {totalPages > 1 && (
