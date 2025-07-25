@@ -51,12 +51,6 @@
     @apply text-sm sm:text-base;
     @apply leading-relaxed;
   }
-  .font-livvic {
-    font-family: "Livvic", sans-serif;
-  }
-  .font-open-sans {
-    font-family: "Open Sans", sans-serif;
-  }
 }
 
 :root {
