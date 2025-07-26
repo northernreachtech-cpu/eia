@@ -6,11 +6,19 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  MessageCircle,
+  QrCode,
+  Trophy,
   //Loader2,
 } from "lucide-react";
-import { useCurrentAccount } from "@mysten/dapp-kit";
+import {
+  useCurrentAccount,
+  useSignAndExecuteTransaction,
+} from "@mysten/dapp-kit";
 import { useAriyaSDK } from "../lib/sdk";
 import { useNetworkVariable } from "../config/sui";
+import { Transaction } from "@mysten/sui/transactions";
+import { suiClient } from "../config/sui";
 import Card from "../components/Card";
 import Button from "../components/Button";
 // import EventCard from "../components/EventCard";
@@ -51,12 +59,80 @@ const Events = () => {
   const currentAccount = useCurrentAccount();
   const sdk = useAriyaSDK();
   const registrationRegistryId = useNetworkVariable("registrationRegistryId");
+  const attendanceRegistryId = useNetworkVariable("attendanceRegistryId");
+  const nftRegistryId = useNetworkVariable("nftRegistryId");
+  const communityRegistryId = useNetworkVariable("communityRegistryId");
+  const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const eventsPerPage = 6;
+  const [joiningCommunity, setJoiningCommunity] = useState<string | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [mintingPoA, setMintingPoA] = useState<string | null>(null);
+
+  const handleJoinCommunity = async (event: any) => {
+    if (!currentAccount || !communityRegistryId || !nftRegistryId) return;
+    setJoiningCommunity(event.id);
+    try {
+      // First check if there are communities for this event
+      const communities = await sdk.communityAccess.getEventCommunities(
+        event.id,
+        communityRegistryId
+      );
+
+      if (communities.length === 0) {
+        setSuccessMessage(
+          "No community available for this event yet. The organizer may create one during the event."
+        );
+        setShowSuccessModal(true);
+        return;
+      }
+
+      // For now, join the first community (could be enhanced with community selection)
+      const communityId = communities[0].id;
+
+      const tx = sdk.communityAccess.requestCommunityAccess(
+        communityId,
+        currentAccount.address,
+        nftRegistryId,
+        communityRegistryId
+      );
+
+      await signAndExecute({ transaction: tx });
+      setSuccessMessage(
+        "Successfully joined the event community! You can now access forums and resources."
+      );
+      setShowSuccessModal(true);
+      navigate(`/community/${communityId}`);
+    } catch (e: any) {
+      let message = e.message || "Failed to join community.";
+
+      // Handle specific Move abort codes
+      if (message.includes("MoveAbort") && message.includes("2")) {
+        message =
+          "You need a PoA (Proof of Attendance) NFT to join this community. The NFT should be automatically minted when you check in to the event. If you've already checked in but don't have the NFT, please contact the event organizer.";
+      } else if (message.includes("NFT required")) {
+        message =
+          "You need a PoA NFT to join this community. Make sure you've checked in to the event.";
+      } else if (message.includes("MoveAbort")) {
+        // Parse other Move abort codes if needed
+        if (message.includes("1")) {
+          message = "Community not found or inactive.";
+        } else if (message.includes("3")) {
+          message = "You're already a member of this community.";
+        }
+      }
+
+      setSuccessMessage(message);
+      setShowSuccessModal(true);
+    } finally {
+      setJoiningCommunity(null);
+    }
+  };
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -64,9 +140,9 @@ const Events = () => {
         setLoading(true);
         const allEvents = await sdk.eventManagement.getActiveEvents();
 
-        // Add registration status for current user if connected
+        // Add registration status and attendance state for current user if connected
         if (currentAccount) {
-          const eventsWithRegistration = await Promise.all(
+          const eventsWithStatus = await Promise.all(
             allEvents.map(async (event) => {
               const registration =
                 await sdk.identityAccess.getRegistrationStatus(
@@ -81,14 +157,52 @@ const Events = () => {
                 currentAccount.address
               );
 
+              // Get attendance status from contract
+              let attendanceState = 0;
+              let hasRecord = false;
+              try {
+                const tx = new Transaction();
+                tx.moveCall({
+                  target: `${sdk.attendanceVerification.getPackageId()}::attendance_verification::get_attendance_status`,
+                  arguments: [
+                    tx.pure.address(currentAccount.address),
+                    tx.pure.id(event.id),
+                    tx.object(attendanceRegistryId),
+                  ],
+                });
+                const result = await suiClient.devInspectTransactionBlock({
+                  transactionBlock: tx,
+                  sender: currentAccount.address,
+                });
+                // Parse result: [hasRecord, state, checkInTime, checkOutTime]
+                if (result && result.results && result.results.length > 0) {
+                  const returnVals = result.results[0].returnValues;
+                  if (Array.isArray(returnVals) && returnVals.length >= 4) {
+                    hasRecord = Array.isArray(returnVals[0])
+                      ? returnVals[0].length > 0
+                      : !!returnVals[0];
+                    attendanceState = (
+                      Array.isArray(returnVals[1])
+                        ? returnVals[1][0]
+                        : parseInt(returnVals[1]) || 0
+                    ) as number;
+                  }
+                }
+              } catch (e) {
+                attendanceState = 0;
+                hasRecord = false;
+              }
+
               return {
                 ...event,
                 isRegistered: !!registration,
                 isOrganizer,
+                attendanceState,
+                hasRecord,
               };
             })
           );
-          setEvents(eventsWithRegistration);
+          setEvents(eventsWithStatus);
         } else {
           setEvents(allEvents);
         }
@@ -100,7 +214,7 @@ const Events = () => {
     };
 
     loadEvents();
-  }, [currentAccount, sdk, registrationRegistryId]);
+  }, [currentAccount, sdk, registrationRegistryId, attendanceRegistryId]);
 
   const filteredEvents = events.filter(
     (event) =>
@@ -258,9 +372,48 @@ const Events = () => {
                           You're the Organizer
                         </Button>
                       ) : event.isRegistered ? (
-                        <Button variant="outline" size="sm" className="w-full">
-                          ✓ Registered
-                        </Button>
+                        <>
+                          {/* Show different buttons based on attendance state */}
+                          {event.attendanceState === 1 ? (
+                            <>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                              >
+                                <QrCode className="mr-2 h-4 w-4" />✓ Checked In
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="w-full"
+                                variant="secondary"
+                                onClick={() => handleJoinCommunity(event)}
+                                disabled={joiningCommunity === event.id}
+                              >
+                                <MessageCircle className="mr-2 h-4 w-4" />
+                                {joiningCommunity === event.id
+                                  ? "Joining..."
+                                  : "Join Community"}
+                              </Button>
+                            </>
+                          ) : event.attendanceState === 2 ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                            >
+                              ✓ Completed
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                            >
+                              ✓ Registered
+                            </Button>
+                          )}
+                        </>
                       ) : (
                         <Button
                           size="sm"
@@ -335,6 +488,27 @@ const Events = () => {
           )}
         </div>
       </div>
+
+      {/* Success Modal */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+          <div
+            onClick={() => setShowSuccessModal(false)}
+            className="bg-white rounded-lg p-8 max-w-sm mx-4 shadow-lg"
+          >
+            <h3 className="text-xl font-semibold text-green-600 mb-4">
+              Success
+            </h3>
+            <p className="text-gray-800 mb-6">{successMessage}</p>
+            <Button
+              onClick={() => setShowSuccessModal(false)}
+              className="w-full"
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

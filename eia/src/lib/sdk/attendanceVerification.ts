@@ -327,10 +327,11 @@ export class AttendanceVerificationSDK {
 
   /**
    * Check-in an attendee (create attendance verification transaction)
+   * Transfers MintPoACapability to attendee for later NFT minting
    */
   checkInAttendee(
     eventId: string,
-    _attendeeAddress: string,
+    attendeeAddress: string,
     attendanceRegistryId: string,
     registrationRegistryId: string,
     qrData: { pass_hash: Uint8Array }
@@ -341,7 +342,7 @@ export class AttendanceVerificationSDK {
     const deviceFingerprint = new TextEncoder().encode("device_fingerprint");
     const locationProof = new TextEncoder().encode("location_proof");
 
-    // Call check_in and drop the returned MintPoACapability
+    // Call check_in and get the returned MintPoACapability
     const capability = tx.moveCall({
       target: `${this.packageId}::attendance_verification::check_in`,
       arguments: [
@@ -355,17 +356,16 @@ export class AttendanceVerificationSDK {
       ],
     });
 
-    // Drop the returned capability to avoid UnusedValueWithoutDrop error
-    tx.moveCall({
-      target: `${this.packageId}::attendance_verification::consume_poa_capability`,
-      arguments: [capability],
-    });
+    // Always transfer the capability to the attendee
+    // They can mint their PoA NFT when needed for community access
+    tx.transferObjects([capability], attendeeAddress);
 
     return tx;
   }
 
   /**
    * Check-in attendee using pass_id (for new QR format)
+   * Transfers MintPoACapability to attendee for later NFT minting
    */
   checkInAttendeeWithPassId(
     eventId: string,
@@ -382,7 +382,7 @@ export class AttendanceVerificationSDK {
     const deviceFingerprint = new TextEncoder().encode("device_fingerprint");
     const locationProof = new TextEncoder().encode("location_proof");
 
-    // Call check_in and drop the returned MintPoACapability
+    // Call check_in and get the returned MintPoACapability
     const capability = tx.moveCall({
       target: `${this.packageId}::attendance_verification::check_in`,
       arguments: [
@@ -396,11 +396,9 @@ export class AttendanceVerificationSDK {
       ],
     });
 
-    // Drop the returned capability to avoid UnusedValueWithoutDrop error
-    tx.moveCall({
-      target: `${this.packageId}::attendance_verification::consume_poa_capability`,
-      arguments: [capability],
-    });
+    // Always transfer the capability to the user
+    // They can mint their PoA NFT when needed for community access
+    tx.transferObjects([capability], userAddress);
 
     return tx;
   }
@@ -502,6 +500,129 @@ export class AttendanceVerificationSDK {
     } catch (error) {
       console.error("Error fetching event attendance:", error);
       return [];
+    }
+  }
+
+  /**
+   * Mint PoA NFT using the MintPoACapability received during check-in
+   */
+  async mintPoANFT(
+    userAddress: string,
+    eventId: string,
+    nftRegistryId: string,
+    signAndExecute: (params: { transaction: Transaction }) => Promise<any>
+  ): Promise<any> {
+    // 1. Find the MintPoACapability object for this user and event
+    const { data: objects } = await suiClient.getOwnedObjects({
+      owner: userAddress,
+      filter: {
+        StructType: `${this.packageId}::attendance_verification::MintPoACapability`,
+      },
+      options: { showContent: true },
+    });
+
+    let capabilityId: string | null = null;
+    for (const obj of objects) {
+      const content = obj.data?.content;
+      // Only access fields if content is a moveObject with fields
+      if (content && content.dataType === "moveObject" && "fields" in content) {
+        const fields = (content as any).fields;
+        if (fields && fields.event_id === eventId && obj.data) {
+          capabilityId = obj.data.objectId;
+          break;
+        }
+      }
+    }
+
+    if (!capabilityId)
+      throw new Error("No MintPoACapability found for this event");
+
+    // 2. Build the mint transaction
+    const tx = new Transaction();
+    tx.moveCall({
+      target: `${this.packageId}::nft_minting::mint_proof_of_attendance`,
+      arguments: [tx.object(capabilityId), tx.object(nftRegistryId)],
+    });
+
+    // 3. Execute the transaction
+    return signAndExecute({ transaction: tx });
+  }
+
+  /**
+   * Check if user has PoA NFT for a specific event
+   */
+  async hasPoANFT(
+    userAddress: string,
+    eventId: string,
+    nftRegistryId: string
+  ): Promise<boolean> {
+    try {
+      // Method 1: Check via contract function
+      const tx = new Transaction();
+      tx.moveCall({
+        target: `${this.packageId}::nft_minting::has_proof_of_attendance`,
+        arguments: [
+          tx.pure.address(userAddress),
+          tx.pure.id(eventId),
+          tx.object(nftRegistryId),
+        ],
+      });
+
+      const result = await suiClient.devInspectTransactionBlock({
+        transactionBlock: tx,
+        sender: userAddress,
+      });
+
+      if (result && result.results && result.results.length > 0) {
+        const returnVals = result.results[0].returnValues;
+        if (Array.isArray(returnVals) && returnVals.length > 0) {
+          const hasNFT = Array.isArray(returnVals[0])
+            ? returnVals[0][0]
+            : returnVals[0];
+          console.log("🔍 Contract check - Has PoA NFT:", Boolean(hasNFT));
+          return Boolean(hasNFT);
+        }
+      }
+
+      console.log("❌ Contract check failed, trying direct object query...");
+
+      // Method 2: Check by querying owned objects (fallback)
+      const { data: objects } = await suiClient.getOwnedObjects({
+        owner: userAddress,
+        filter: {
+          StructType: `${this.packageId}::nft_minting::ProofOfAttendance`,
+        },
+        options: { showContent: true },
+      });
+
+      console.log("📦 Found PoA NFT objects:", objects.length);
+
+      // Check if any of the owned NFTs is for this event
+      const hasEventNFT = objects.some((obj) => {
+        const content = obj.data?.content;
+        if (
+          content &&
+          content.dataType === "moveObject" &&
+          "fields" in content
+        ) {
+          const fields = (content as any).fields;
+          console.log("🔍 Checking NFT fields:", fields);
+          const isMatch = fields && fields.event_id === eventId;
+          console.log("✅ Event ID match:", {
+            nftEventId: fields?.event_id,
+            currentEventId: eventId,
+            isMatch,
+          });
+          return isMatch;
+        }
+        return false;
+      });
+
+      console.log("🎯 Final NFT ownership result:", hasEventNFT);
+      return hasEventNFT;
+    } catch (error) {
+      console.error("❌ Error checking PoA NFT:", error);
+      return false;
     }
   }
 

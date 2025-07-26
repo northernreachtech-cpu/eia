@@ -9,6 +9,7 @@ import {
   Trophy,
   Loader2,
   Star,
+  MessageCircle,
 } from "lucide-react";
 import {
   useCurrentAccount,
@@ -155,6 +156,7 @@ const EventDetails = () => {
   const registrationRegistryId = useNetworkVariable("registrationRegistryId");
   const attendanceRegistryId = useNetworkVariable("attendanceRegistryId");
   const nftRegistryId = useNetworkVariable("nftRegistryId");
+  const communityRegistryId = useNetworkVariable("communityRegistryId");
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   // Attendance state from navigation (if available)
@@ -196,6 +198,9 @@ const EventDetails = () => {
   const escrowRegistryId = useNetworkVariable("escrowRegistryId");
   const clockId = "0x6";
   const [escrowSDK, setEscrowSDK] = useState<EscrowSettlementSDK | null>(null);
+  const [joiningCommunity, setJoiningCommunity] = useState(false);
+  const [mintingPoA, setMintingPoA] = useState(false);
+  const [hasPoACapability, setHasPoACapability] = useState(false);
 
   useEffect(() => {
     setEscrowSDK(new EscrowSettlementSDK(sdk.eventManagement.getPackageId()));
@@ -226,6 +231,178 @@ const EventDetails = () => {
       setProfileError("Failed to load organizer profile.");
     } finally {
       setProfileLoading(false);
+    }
+  };
+
+  const checkPoACapability = async () => {
+    if (!currentAccount || !event) return;
+    try {
+      const { data: objects } = await suiClient.getOwnedObjects({
+        owner: currentAccount.address,
+        filter: {
+          StructType: `${sdk.attendanceVerification.getPackageId()}::attendance_verification::MintPoACapability`,
+        },
+        options: { showContent: true },
+      });
+
+      // Check if user has a MintPoACapability for this specific event
+      const hasCapability = objects.some((obj) => {
+        const content = obj.data?.content;
+        if (
+          content &&
+          content.dataType === "moveObject" &&
+          "fields" in content
+        ) {
+          const fields = (content as any).fields;
+          return fields && fields.event_id === event.id;
+        }
+        return false;
+      });
+
+      setHasPoACapability(hasCapability);
+    } catch (error) {
+      console.error("Error checking PoA capability:", error);
+      setHasPoACapability(false);
+    }
+  };
+
+  const handleMintPoA = async () => {
+    if (!currentAccount || !nftRegistryId || !event) return;
+    setMintingPoA(true);
+    try {
+      await sdk.attendanceVerification.mintPoANFT(
+        currentAccount.address,
+        event.id,
+        nftRegistryId,
+        signAndExecute
+      );
+      setMintResult({
+        success: true,
+        message: "PoA NFT minted successfully! You can now join the community.",
+      });
+      // Refresh capability status to hide the mint button
+      await checkPoACapability();
+    } catch (e: any) {
+      setMintResult({
+        success: false,
+        message: e.message || "Failed to mint PoA NFT. Please try again.",
+      });
+    } finally {
+      setMintingPoA(false);
+    }
+  };
+
+  const handleJoinCommunity = async () => {
+    if (!currentAccount || !event || !communityRegistryId || !nftRegistryId)
+      return;
+    setJoiningCommunity(true);
+    try {
+      // First check if user has PoA NFT for this event
+      console.log(
+        "🔍 Checking if user has PoA NFT before joining community..."
+      );
+      const hasPoA = await sdk.attendanceVerification.hasPoANFT(
+        currentAccount.address,
+        event.id,
+        nftRegistryId
+      );
+
+      if (!hasPoA) {
+        setMintResult({
+          success: false,
+          message:
+            "You need to mint your PoA NFT first before joining the community. Please click the 'Mint PoA NFT' button above.",
+        });
+        return;
+      }
+
+      console.log("✅ User has PoA NFT, proceeding to join community...");
+
+      // Check if there are communities for this event
+      console.log("🔍 Fetching communities for event:", event.id);
+      const communities = await sdk.communityAccess.getEventCommunities(
+        event.id,
+        communityRegistryId
+      );
+
+      console.log("🌐 Found communities:", communities);
+
+      if (communities.length === 0) {
+        setMintResult({
+          success: false,
+          message:
+            "No community available for this event yet. The organizer may create one during the event.",
+        });
+        return;
+      }
+
+      // For now, join the first community
+      const communityId = communities[0].id;
+      console.log("🎯 Attempting to join community:", communityId);
+
+      // Check if user is already an active member
+      const membershipCheck = await sdk.communityAccess.isActiveCommunityMember(
+        communityId,
+        currentAccount.address,
+        communityRegistryId,
+        nftRegistryId
+      );
+
+      if (membershipCheck.isActive) {
+        // User is already an active member, navigate directly to community
+        setMintResult({
+          success: true,
+          message: "You're already a member of this community! Redirecting you now.",
+        });
+        setTimeout(() => {
+          navigate(`/community/${communityId}`);
+        }, 1500);
+        return;
+      }
+
+      // User needs to join or rejoin the community
+      const tx = sdk.communityAccess.requestCommunityAccess(
+        communityId,
+        currentAccount.address,
+        nftRegistryId,
+        communityRegistryId
+      );
+
+      await signAndExecute({ transaction: tx });
+      setMintResult({
+        success: true,
+        message:
+          "Successfully joined the event community! You can now access forums and resources.",
+      });
+      // Navigate to community after a short delay
+      setTimeout(() => {
+        navigate(`/community/${communityId}`);
+      }, 1500);
+    } catch (e: any) {
+      let message = e.message || "Failed to join community.";
+
+      // Handle specific Move abort codes
+      if (message.includes("MoveAbort") && message.includes("2")) {
+        message =
+          "You need a PoA (Proof of Attendance) NFT to join this community. Please make sure you've minted your PoA NFT first.";
+      } else if (message.includes("NFT required")) {
+        message =
+          "You need a PoA NFT to join this community. Make sure you've minted your PoA NFT.";
+      } else if (message.includes("MoveAbort")) {
+        // Parse other Move abort codes if needed
+        if (message.includes("1")) {
+          message = "Community not found or inactive.";
+        } else if (message.includes("3")) {
+          message = "You're already a member of this community.";
+        }
+      }
+
+      setMintResult({
+        success: false,
+        message,
+      });
+    } finally {
+      setJoiningCommunity(false);
     }
   };
 
@@ -302,6 +479,23 @@ const EventDetails = () => {
             setHasRecord(false);
             setCheckInTime(0);
             setCheckOutTime(0);
+          }
+
+          // Console log attendance state for debugging
+          console.log(
+            `[EventDetails] Event ${id} - User ${currentAccount.address}:`,
+            {
+              attendanceState,
+              hasRecord,
+              checkInTime,
+              checkOutTime,
+              eventName: event?.name || "Unknown",
+            }
+          );
+
+          // Check PoA capability for checked-in users
+          if (attendanceState === 1) {
+            checkPoACapability();
           }
         }
       } catch (error) {
@@ -724,6 +918,38 @@ const EventDetails = () => {
                       >
                         <QrCode className="mr-2 h-5 w-5" />
                         Show QR Code
+                      </Button>
+                    )}
+
+                    {(attendanceState === 1 ||
+                      (Array.isArray(attendanceState) &&
+                        attendanceState[0] === 1)) &&
+                      hasPoACapability && (
+                        <Button
+                          size="lg"
+                          className="w-full mb-2"
+                          variant="outline"
+                          onClick={handleMintPoA}
+                          disabled={mintingPoA}
+                        >
+                          <Trophy className="mr-2 h-5 w-5" />
+                          {mintingPoA ? "Minting..." : "Mint PoA NFT"}
+                        </Button>
+                      )}
+                    {(attendanceState === 1 ||
+                      (Array.isArray(attendanceState) &&
+                        attendanceState[0] === 1)) && (
+                      <Button
+                        size="lg"
+                        className="w-full"
+                        variant="secondary"
+                        onClick={handleJoinCommunity}
+                        disabled={joiningCommunity}
+                      >
+                        <MessageCircle className="mr-2 h-5 w-5" />
+                        {joiningCommunity
+                          ? "Joining..."
+                          : "Join Live Community"}
                       </Button>
                     )}
                     {(attendanceState === 2 ||

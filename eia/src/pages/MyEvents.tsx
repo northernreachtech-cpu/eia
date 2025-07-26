@@ -12,6 +12,7 @@ import {
   ChevronRight,
   Star,
   CheckCircle,
+  MessageCircle,
   //Loader2,
 } from "lucide-react";
 import {
@@ -93,6 +94,7 @@ const MyEvents = () => {
   const attendanceRegistryId = useNetworkVariable("attendanceRegistryId");
   const nftRegistryId = useNetworkVariable("nftRegistryId");
   const ratingRegistryId = useNetworkVariable("ratingRegistryId");
+  const communityRegistryId = useNetworkVariable("communityRegistryId");
   const { mutateAsync: signAndExecute } = useSignAndExecuteTransaction();
 
   const [activeTab, setActiveTab] = useState("attending");
@@ -114,6 +116,7 @@ const MyEvents = () => {
   const [ratingLoading, setRatingLoading] = useState(false);
   const [ratingError, setRatingError] = useState("");
   const [ratingSuccess, setRatingSuccess] = useState("");
+  const [joiningCommunity, setJoiningCommunity] = useState<string | null>(null);
 
   const handleShowQR = async (event: any) => {
     try {
@@ -219,6 +222,87 @@ const MyEvents = () => {
     }
   };
 
+  const handleJoinCommunity = async (event: any) => {
+    if (!currentAccount || !communityRegistryId || !nftRegistryId) return;
+    setJoiningCommunity(event.id);
+    try {
+      // First check if there are communities for this event
+      const communities = await sdk.communityAccess.getEventCommunities(
+        event.id,
+        communityRegistryId
+      );
+
+      if (communities.length === 0) {
+        setSuccessMessage(
+          "No community available for this event yet. The organizer may create one during the event."
+        );
+        setShowSuccessModal(true);
+        return;
+      }
+
+      // For now, join the first community (could be enhanced with community selection)
+      const communityId = communities[0].id;
+
+      // Check if user is already an active member
+      const membershipCheck = await sdk.communityAccess.isActiveCommunityMember(
+        communityId,
+        currentAccount.address,
+        communityRegistryId,
+        nftRegistryId
+      );
+
+      if (membershipCheck.isActive) {
+        // User is already an active member, navigate directly to community
+        setSuccessMessage(
+          "You're already a member of this community! Redirecting you now."
+        );
+        setShowSuccessModal(true);
+        setTimeout(() => {
+          navigate(`/community/${communityId}`);
+        }, 1500);
+        return;
+      }
+
+      // User needs to join or rejoin the community
+      const tx = sdk.communityAccess.requestCommunityAccess(
+        communityId,
+        currentAccount.address,
+        nftRegistryId,
+        communityRegistryId
+      );
+
+      await signAndExecute({ transaction: tx });
+      setSuccessMessage(
+        "Successfully joined the event community! You can now access forums and resources."
+      );
+      setShowSuccessModal(true);
+      navigate(`/community/${communityId}`);
+    } catch (e: any) {
+      let message = e.message || "Failed to join community.";
+
+      // Handle specific Move abort codes
+      if (message.includes("MoveAbort") && message.includes("2")) {
+        message =
+          "You need a PoA (Proof of Attendance) NFT to join this community. The NFT should be automatically minted when you check in to the event. If you've already checked in but don't have the NFT, please contact the event organizer.";
+      } else if (message.includes("NFT required")) {
+        message =
+          "You need a PoA NFT to join this community. Make sure you've checked in to the event.";
+      } else if (message.includes("MoveAbort")) {
+        // Parse other Move abort codes if needed
+        if (message.includes("1")) {
+          message = "Community not found or inactive.";
+        } else if (message.includes("3")) {
+          message = "You're already a member of this community.";
+        }
+      }
+
+      setSuccessMessage(message);
+      setShowSuccessModal(true);
+    } finally {
+      setJoiningCommunity(null);
+    }
+  };
+
   useEffect(() => {
     const loadEvents = async () => {
       if (!currentAccount) return;
@@ -288,6 +372,19 @@ const MyEvents = () => {
               checkInTime = 0;
               checkOutTime = 0;
             }
+
+            // Console log attendance state for debugging
+            console.log(
+              `[MyEvents] Event ${event.id} - User ${currentAccount.address}:`,
+              {
+                attendanceState,
+                hasRecord,
+                checkInTime,
+                checkOutTime,
+                eventName: event.name,
+              }
+            );
+
             // Attach organizer_profile_id
             const normalize = (addr: string) => {
               if (!addr) return "";
@@ -530,14 +627,28 @@ const MyEvents = () => {
                     {(Array.isArray(event.attendanceState)
                       ? event.attendanceState[0]
                       : event.attendanceState) === 1 && (
-                      <Button
-                        size="sm"
-                        className="w-full"
-                        onClick={() => handleShowQR(event)}
-                      >
-                        <QrCode className="mr-2 h-4 w-4" />
-                        Show QR Code
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleShowQR(event)}
+                        >
+                          <QrCode className="mr-2 h-4 w-4" />
+                          Show QR Code
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          variant="secondary"
+                          onClick={() => handleJoinCommunity(event)}
+                          disabled={joiningCommunity === event.id}
+                        >
+                          <MessageCircle className="mr-2 h-4 w-4" />
+                          {joiningCommunity === event.id
+                            ? "Joining..."
+                            : "Join Community"}
+                        </Button>
+                      </>
                     )}
                     {(Array.isArray(event.attendanceState)
                       ? event.attendanceState[0]

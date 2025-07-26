@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { EventManagementSDK } from "./eventManagement";
 import { IdentityAccessSDK } from "./identityAccess";
 import { AttendanceVerificationSDK } from "./attendanceVerification";
+import { CommunityAccessSDK } from "./communityAccess";
 import { useNetworkVariable } from "../../config/sui";
 
 // Main SDK class that combines all modules
@@ -9,11 +10,13 @@ export class AriyaSDK {
   public eventManagement: EventManagementSDK;
   public identityAccess: IdentityAccessSDK;
   public attendanceVerification: AttendanceVerificationSDK;
+  public communityAccess: CommunityAccessSDK;
 
   constructor(packageId: string) {
     this.eventManagement = new EventManagementSDK(packageId);
     this.identityAccess = new IdentityAccessSDK(packageId);
     this.attendanceVerification = new AttendanceVerificationSDK(packageId);
+    this.communityAccess = new CommunityAccessSDK(packageId);
   }
 }
 
@@ -41,6 +44,13 @@ export {
   type CheckInResult,
   type QRCodeData,
 } from "./attendanceVerification";
+
+export {
+  CommunityAccessSDK,
+  type CommunityConfig,
+  type CommunityInfo,
+  type AccessPass,
+} from "./communityAccess";
 
 // Add export for EscrowSettlementSDK (to be implemented)
 export { EscrowSettlementSDK } from "./escrowSettlement";

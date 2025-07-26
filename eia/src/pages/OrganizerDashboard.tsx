@@ -11,6 +11,7 @@ import {
   Play,
   QrCode,
   Share2,
+  MessageCircle,
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -133,6 +134,7 @@ const OrganizerDashboard = () => {
   const attendanceRegistryId = useNetworkVariable("attendanceRegistryId");
   const registrationRegistryId = useNetworkVariable("registrationRegistryId");
   const nftRegistryId = useNetworkVariable("nftRegistryId");
+  const communityRegistryId = useNetworkVariable("communityRegistryId");
 
   const [loading, setLoading] = useState(true);
   const [activatingEvent, setActivatingEvent] = useState<string | null>(null);
@@ -157,6 +159,11 @@ const OrganizerDashboard = () => {
   );
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareEventLink, setShareEventLink] = useState("");
+  const [showCommunityModal, setShowCommunityModal] = useState(false);
+  const [communityEvent, setCommunityEvent] = useState<any>(null);
+  const [creatingCommunity, setCreatingCommunity] = useState(false);
+  const [communityName, setCommunityName] = useState("");
+  const [communityDescription, setCommunityDescription] = useState("");
 
   const eventsPerPage = 5;
   const [currentPage, setCurrentPage] = useState(1);
@@ -245,7 +252,9 @@ const OrganizerDashboard = () => {
           transaction: tx,
         });
 
-        alert(`Successfully checked in ${qrData.user_address}`);
+        alert(
+          `Successfully checked in ${qrData.user_address}. PoA capability transferred.`
+        );
       } else {
         // Fallback to old method for backward compatibility
         // Validate QR code
@@ -272,7 +281,9 @@ const OrganizerDashboard = () => {
           transaction: tx,
         });
 
-        alert(`Successfully checked in ${validation.attendeeAddress}`);
+        alert(
+          `Successfully checked in ${validation.attendeeAddress}. PoA capability transferred.`
+        );
       }
 
       // Reload events to update attendee count
@@ -386,6 +397,61 @@ const OrganizerDashboard = () => {
       setShowSuccessModal(true);
     } finally {
       setCompletingEvent(null);
+    }
+  };
+
+  const handleCreateCommunity = (event: any) => {
+    setCommunityEvent(event);
+    setCommunityName(`${event.title} Community`);
+    setCommunityDescription(
+      `Join the live community for ${event.title} attendees`
+    );
+    setShowCommunityModal(true);
+  };
+
+  const confirmCreateCommunity = async () => {
+    if (!communityEvent || !organizerProfileId || !communityRegistryId) return;
+    setCreatingCommunity(true);
+    try {
+      const config = {
+        name: communityName,
+        description: communityDescription,
+        accessRequirements: {
+          nftTypes: ["poa" as const], // Only PoA required for live events
+          minimumRating: undefined,
+          timeLimit: "event_duration" as const,
+          customRequirements: [],
+        },
+        features: {
+          forum: true,
+          resources: true,
+          calendar: false,
+          directory: true,
+          governance: false,
+        },
+        moderators: [currentAccount!.address],
+      };
+
+      const tx = sdk.communityAccess.createCommunity(
+        communityEvent.id,
+        config,
+        communityRegistryId
+      );
+
+      await signAndExecute({ transaction: tx });
+      setSuccessMessage(
+        "Community created successfully! Attendees can now join with their PoA NFTs."
+      );
+      setShowSuccessModal(true);
+      setShowCommunityModal(false);
+      setCommunityName("");
+      setCommunityDescription("");
+    } catch (e: any) {
+      let message = e.message || "Failed to create community.";
+      setSuccessMessage(message);
+      setShowSuccessModal(true);
+    } finally {
+      setCreatingCommunity(false);
     }
   };
 
@@ -738,6 +804,16 @@ const OrganizerDashboard = () => {
                                 size="sm"
                                 className="flex-1"
                                 variant="outline"
+                                onClick={() => handleCreateCommunity(event)}
+                                disabled={creatingCommunity}
+                              >
+                                <MessageCircle className="mr-1 h-3 w-3" />
+                                Create Community
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="flex-1"
+                                variant="outline"
                                 onClick={() => handleCompleteEvent(event)}
                                 disabled={completingEvent === event.id}
                               >
@@ -912,6 +988,77 @@ const OrganizerDashboard = () => {
               >
                 Close
               </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Community Creation Modal */}
+        {showCommunityModal && communityEvent && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm">
+            <div className="relative bg-white/20 backdrop-blur-2xl border border-white/20 shadow-2xl rounded-2xl max-w-md w-full mx-4 p-0 overflow-hidden">
+              <div className="flex flex-col items-center justify-center pt-8 pb-2 bg-gradient-to-r from-primary/80 to-secondary/80">
+                <span className="text-5xl mb-2">🌐</span>
+                <h3 className="text-2xl font-bold text-white drop-shadow mb-1 font-livvic">
+                  Create Live Community
+                </h3>
+                <p className="text-white/80 text-sm mb-2 font-open-sans">
+                  Create a community for checked-in attendees
+                </p>
+              </div>
+              <div className="px-8 py-6 flex flex-col gap-4 font-open-sans">
+                <div>
+                  <label className="text-white/80 text-sm font-semibold mb-1 font-livvic block">
+                    Community Name
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full p-3 rounded-lg border border-white/20 bg-white/60 text-gray-900 font-semibold focus:ring-2 focus:ring-primary/40 outline-none"
+                    value={communityName}
+                    onChange={(e) => setCommunityName(e.target.value)}
+                    disabled={creatingCommunity}
+                  />
+                </div>
+                <div>
+                  <label className="text-white/80 text-sm font-semibold mb-1 font-livvic block">
+                    Description
+                  </label>
+                  <textarea
+                    className="w-full p-3 rounded-lg border border-white/20 bg-white/60 text-gray-900 font-semibold focus:ring-2 focus:ring-primary/40 outline-none"
+                    rows={3}
+                    value={communityDescription}
+                    onChange={(e) => setCommunityDescription(e.target.value)}
+                    disabled={creatingCommunity}
+                  />
+                </div>
+                <div className="text-sm text-white/70 bg-white/10 p-3 rounded-lg">
+                  <p>
+                    <strong>Access:</strong> PoA NFT holders only
+                  </p>
+                  <p>
+                    <strong>Features:</strong> Forum, Resources, Directory
+                  </p>
+                  <p>
+                    <strong>Duration:</strong> Active during event
+                  </p>
+                </div>
+                <div className="flex gap-3 mt-2">
+                  <Button
+                    onClick={confirmCreateCommunity}
+                    disabled={creatingCommunity || !communityName.trim()}
+                    className="flex-1 bg-gradient-to-r from-primary to-secondary text-white font-bold py-2 rounded-xl shadow-lg hover:from-secondary hover:to-primary transition-all text-base min-w-0 font-livvic"
+                  >
+                    {creatingCommunity ? "Creating..." : "Create Community"}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowCommunityModal(false)}
+                    className="flex-1 border-0 bg-white/60 text-gray-700 font-semibold py-2 rounded-xl hover:bg-white/80 transition-all text-base min-w-0 font-livvic"
+                    disabled={creatingCommunity}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         )}
